@@ -1,0 +1,122 @@
+
+<!-- table zwave_devices search -->
+<div>
+ [ <a href="#" onClick="$('#api_settings').toggle();return false;"><#LANG_SETUP#></a> ]
+</div>
+<div style="display:none" id='api_settings'>
+&nbsp;
+<form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
+<fieldset>
+<div class="form-group">
+    <!--
+ <label class="control-label"[#if ERR_API_URL#] style="color:red;font-weight:bold"[#endif#]>
+ API URL:
+ (*)
+ </label>
+ <div class="controls"><input type="text" name="api_url" value="[#API_URL#]" class="input"></div>
+</div>
+<div class="form-group">
+ <label class="control-label"[#if ERR_API_KEY#] style="color:red;font-weight:bold"[#endif#]>
+ API KEY:
+ (*)
+ </label>
+ <div class="controls"><input type="text" name="api_key" value="[#API_KEY#]" class="input"></div>
+</div>-->
+<div class="form-group">
+ <label class="control-label"[#if !API_USERNAME#] style="color:red;font-weight:bold"[#endif#]>
+User Name*:
+ </label>
+ <div class="controls"><input type="text" name="api_username" value="[#API_USERNAME#]" class="input"></div>
+</div>
+<div class="form-group">
+ <label class="control-label"[#if !API_PASSWORD#] style="color:red;font-weight:bold"[#endif#]>
+Password*:
+ </label>
+ <div class="controls"><input type="password" name="api_password" value="[#API_PASSWORD#]" class="input"></div>
+</div>
+    <div class="form-group">
+        <label class="control-label"[#if !API_COUNTRY#] style="color:red;font-weight:bold"[#endif#]>
+            Country(Example: RU)*:
+        </label>
+        <div class="controls"><input type="text" name="api_country" value="[#API_COUNTRY#]" class="input"></div>
+    </div>
+    <div class="form-group">
+        <label class="control-label"[#if !API_LANGUAGE#] style="color:red;font-weight:bold"[#endif#]>
+            Language (Example: ru-RU)*:
+        </label>
+        <div class="controls"><input type="text" name="api_language" value="[#API_LANGUAGE#]" class="input"></div>
+    </div>
+    <div class="form-group">
+        <label class="control-label">
+            Refresh period(sec):
+        </label>
+        <div class="controls"><input type="text" name="api_refresh_period" value="[#API_REFRESH_PERIOD#]" class="input"></div>
+    </div>
+    <div class="form-group">
+        <label class="control-label" style="color:red;font-weight:bold">
+            All fields with '*' are required!
+        </label>
+    </div>
+<div class="form-actions">
+<button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+<input type="hidden" name="view_mode" value="update_settings">
+<input type="hidden" name="mode" value="update">
+</div>
+</fieldset>
+</form>
+</div>
+ <!-- action usual -->
+ [#if DATA_SOURCE="lgsmarthinq_devices" || DATA_SOURCE=""#]
+ <!-- table lgsmarthinq_devices search -->
+ [#if VIEW_MODE="search_lgsmarthinq_devices" || VIEW_MODE=""#]
+  [#inc lgsmarthinq_devices_search_admin.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_devices search -->
+ <!-- table lgsmarthinq_devices edit -->
+ [#if VIEW_MODE="edit_lgsmarthinq_devices"#]
+   [#if ID!=""#]
+   [#if TITLE!=""#]<h4>[#TITLE#]</h4>[#endif TITLE#]
+<ul class="nav nav-tabs">
+  <li[#if TAB=""#] class="active"[#endif#]>
+   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab="><#LANG_GENERAL#></a>
+  </li>
+  <li[#if TAB="data"#] class="active"[#endif#]>
+   <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=data">&#060#LANG_DATA#&#062</a>
+  </li>
+</ul>
+&nbsp;<br/>
+   [#endif ID#]
+   [#if TAB=""#]
+    [#inc lgsmarthinq_devices_edit_default.html#]
+   [#endif TAB#]
+   [#if TAB="data"#]
+    [#inc lgsmarthinq_devices_edit_data.html#]
+   [#endif TAB#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_devices edit -->
+ <!-- table lgsmarthinq_devices view --> 
+ [#if VIEW_MODE="view_lgsmarthinq_devices"#]
+   [#if TAB=""#]
+    [#inc lgsmarthinq_devices_view_default.html#]
+   [#endif TAB#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_devices view -->
+ [#endif DATA_SOURCE#]
+ <!-- action usual -->
+ [#if DATA_SOURCE="lgsmarthinq_values"#]
+ <!-- table lgsmarthinq_values search -->
+ [#if VIEW_MODE="search_lgsmarthinq_values" || VIEW_MODE=""#]
+  [#inc lgsmarthinq_values_search_admin.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_values search -->
+ <!-- table lgsmarthinq_values edit -->
+ [#if VIEW_MODE="edit_lgsmarthinq_values"#]
+   [#inc lgsmarthinq_values_edit.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_values edit -->
+ <!-- table lgsmarthinq_values view --> 
+ [#if VIEW_MODE="view_lgsmarthinq_values"#]
+   [#inc lgsmarthinq_values_view.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table lgsmarthinq_values view -->
+ [#endif DATA_SOURCE#]
