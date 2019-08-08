@@ -364,6 +364,8 @@ class LGsmartthinq extends module
  lgsmarthinq: VALUE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq: UPDATED datetime
  lgsmarthinq_devices: ID int(10) unsigned NOT NULL auto_increment
+ lgsmarthinq_devices: MAC text NOT NULL DEFAULT ''
+ lgsmarthinq_devices: IMAGE text NOT NULL DEFAULT ''
  lgsmarthinq_devices: TITLE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq_devices: LINKED_OBJECT varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq_devices: LINKED_PROPERTY varchar(100) NOT NULL DEFAULT ''
