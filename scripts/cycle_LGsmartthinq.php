@@ -16,27 +16,31 @@ $module_config = $LGsmartthinq_module->getConfig();
 #if (!$tmp['ID'])
 #   exit; // no devices added -- no need to run this cycle
 echo date("H:i:s") . " running " . basename(__FILE__) . PHP_EOL;
-$latest_check=0;
+$latest_check = 0;
 
-while (1)
-{
+while (1) {
+
     $module_config = $LGsmartthinq_module->getConfig();
-    $checkEvery= $module_config['API_REFRESH_PERIOD']; // poll every 5 seconds
-    if ( $checkEvery <= 0 ) {
+    $checkEvery = $module_config['API_REFRESH_PERIOD']; // poll every 5 seconds
+
+    if ($checkEvery <= 0)
+    {
         $checkEvery = 60;
     }
 
-   setGlobal((str_replace('.php', '', basename(__FILE__))) . 'Run', time(), 1);
-   if ((time()-$latest_check)>$checkEvery) {
-    $latest_check=time();
-    echo date('Y-m-d H:i:s').' Polling devices...'."\n";
-    $LGsmartthinq_module->processCycle();
-   }
-   if (file_exists('./reboot') || IsSet($_GET['onetime']))
-   {
-      $db->Disconnect();
-      exit;
-   }
-   sleep(1);
+    setGlobal((str_replace('.php', '', basename(__FILE__))) . 'Run', time(), 1);
+    if ((time() - $latest_check) > $checkEvery)
+    {
+        $latest_check = time();
+        echo date('Y-m-d H:i:s') . ' Polling devices...' . "\n";
+        $LGsmartthinq_module->processCycle();
+    }
+
+    if (file_exists('./reboot') || IsSet($_GET['onetime']))
+    {
+        $db->Disconnect();
+        exit;
+    }
+    sleep(1);
 }
 DebMes("Unexpected close of cycle: " . basename(__FILE__));
