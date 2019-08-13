@@ -10,8 +10,25 @@ include_once("./load_settings.php");
 include_once(DIR_MODULES . "control_modules/control_modules.class.php");
 $ctl = new control_modules();
 include_once(DIR_MODULES . 'LGsmartthinq/LGsmartthinq.class.php');
+include_once(DIR_MODULES . 'LGsmartthinq/LGAPI.php');
 $LGsmartthinq_module = new LGsmartthinq();
 $module_config = $LGsmartthinq_module->getConfig();
+$api = new LGAPI($module_config['API_USERNAME'], $module_config['API_PASSWORD'], $module_config['API_COUNTRY'], $module_config['API_LANGUAGE']);
+$api->update_access_token();
+$api->login();
+$access_token = $api->get_access_token();
+if ( !$access_token ) {
+    echo "No access token\n";
+    say("No access token for LG smartthinq" ,1);
+    #exit;
+} else {
+    $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();
+    $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE']     = 3600;
+    $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP']  = time();
+    $LGsmartthinq_module->config['API_REFRESH_TOKEN']           = $api->get_refresh_token();
+    $LGsmartthinq_module->config['API_SESSION_ID']              = $api->get_session_id();
+    $LGsmartthinq_module->saveConfig();
+}
 #$tmp = SQLSelectOne("SELECT ID FROM lgsmarthinq_devices LIMIT 1");
 #if (!$tmp['ID'])
 #   exit; // no devices added -- no need to run this cycle
@@ -33,6 +50,19 @@ while (1) {
     {
         $latest_check = time();
         echo date('Y-m-d H:i:s') . ' Polling devices...' . "\n";
+        $expire                     = $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'];
+        $last_access_token_check    = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
+        $current_timestamp = time();
+        if ( ($current_timestamp - $last_access_token_check) > $expire ) {
+            $api->update_access_token();
+            $api->login();
+            $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();
+            $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE']     = 3600;
+            $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP']  = $current_timestamp;
+            $LGsmartthinq_module->config['API_REFRESH_TOKEN']           = $api->get_refresh_token();
+            $LGsmartthinq_module->config['API_SESSION_ID']              = $api->get_session_id();
+            $LGsmartthinq_module->saveConfig();
+        }
         $LGsmartthinq_module->processCycle();
     }
 

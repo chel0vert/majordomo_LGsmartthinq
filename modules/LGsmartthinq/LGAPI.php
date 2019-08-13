@@ -21,13 +21,16 @@ class LGAPI
     private $email          = Null;
     private $password       = Null;
     private $devices        = array();
+    private $workId         = array();
 
-    function __construct($email, $password, $country, $language)
+    function __construct($email, $password, $country, $language,$access_token=Null,$session_id=Null)
     {
-        $this->country = $country;
-        $this->language = $language;
-        $this->email = $email;
-        $this->password = $password;
+        $this->country      = $country;
+        $this->language     = $language;
+        $this->email        = $email;
+        $this->password     = $password;
+        $this->access_token = $access_token;
+        $this->session_id   = $session_id;
     }
 
     function lgedm_post($url = '', $data = array(), $add_headers = Null)
@@ -62,7 +65,10 @@ class LGAPI
                 array_push($headers, 'x-thinq-jsessionId: ' . $this->session_id);
             }
 
-            debmes("Url: $url", 'lgsmarthinq');
+            debmes($headers, 'lgsmarthinq');
+            debmes($url, 'lgsmarthinq');
+            debmes($json_request, 'lgsmarthinq');
+            #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
@@ -73,23 +79,29 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-
+            #print_r($response);
+            #echo "\n";
             $result = json_decode($response);
+            debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
             $code = $result->$data_root->returnCd;
             if ($code == "0102" || $code == "9003") {
                 if ($code == '9003') {
                     debmes("Session creation failure", 'lgsmarthinq');
                 } else {
+                    debmes($response, 'lgsmarthinq');
                     debmes($result->$data_root->returnMsg, 'lgsmarthinq');
                 }
-                $this->update_access_token();
+                #$this->update_access_token();
                 $this->login();
+                #return Null;
             } else if ($code == '0000') {
                 $success = true;
             } else {
-                debmes("Error response: $response", 'lgsmarthinq');
-                debmes("Do request againg. Try: $try", 'lgsmarthinq');
+                #debmes("Error response: $response", 'lgsmarthinq');
+                #debmes("Do request againg. Try: $try", 'lgsmarthinq');
+                echo $response;
+                echo "\n";
             }
             $try = $try + 1;
         } while (!$success && $try <= 10);
@@ -98,15 +110,27 @@ class LGAPI
 
     function update_access_token()
     {
-        $url = $this->oauth_url();
-        $login = $this->email;
+        $this->check_gateway();
+        $url      = $this->oauth_url();
+        #echo $url;
+        $login    = $this->email;
         $password = $this->password;
-        debmes("Start login via selenium", 'lgsmarthinq');
-        $result = exec("python3 " . DIR_MODULES . "/LGsmartthinq/login.py --url '$url' --login '$login' --password '$password'");
+        #debmes("Start login via selenium", 'lgsmarthinq');
+        #debmes($url, 'lgsmarthinq');
+        #debmes($login, 'lgsmarthinq');
+        #debmes($password, 'lgsmarthinq');
+        #ini_set('max_execution_time', '300');
+        $command = "/usr/bin/python3 /var/www/html/modules/LGsmartthinq/login.py --url '$url' --login '$login' --password '$password'";
+        debmes($command, 'lgsmarthinq');
+        #echo $command;
+        #$command = '';
+        $result = exec ($command);
+        #echo $result;
+        debmes("result command: ".$result, 'lgsmarthinq');
         $json = json_decode($result);
         $this->set_access_token((string)$json->access_token);
         $this->set_refresh_token((string)$json->refresh_token);
-        #debmes($json, 'lgsmarthinq');
+        debmes($json, 'lgsmarthinq');
         return (string)$this->access_token;
     }
 
@@ -135,7 +159,7 @@ class LGAPI
     function check_gateway()
     {
         if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth_root) || !isset($this->auth_base)) {
-            debmes("Set GateWays", 'lgsmarthinq');
+            #debmes("Set GateWays", 'lgsmarthinq');
             $this->set_gateway();
         }
     }
@@ -170,6 +194,19 @@ class LGAPI
     function get_refresh_token()
     {
         return $this->refresh_token;
+    }
+
+    function get_session_id()
+    {
+        return $this->session_id;
+    }
+
+    function set_session_id($session_id=Null)
+    {
+        if ( isset($session_id) ) {
+            $this->session_id = $session_id;
+        }
+        return $this->session_id;
     }
 
     function get_access_token()
@@ -213,7 +250,8 @@ class LGAPI
         $data_root = $this->DATA_ROOT;
         $json = json_decode($response);
         $result = $json->$data_root;
-        $this->session_id = (string)$result->jsessionId;
+        $this->set_session_id((string)$result->jsessionId);
+        #debmes((string)$result->jsessionId, 'lgsmarthinq');
         $this->devices = $this->get_items($result);
         return $result;
     }
@@ -244,6 +282,153 @@ class LGAPI
     {
         $this->$property = $value;
         #debmes("SEt api property '$property' => ".$this->$property, 'lgsmarthinq');
+    }
+
+    function gen_uuid() {
+        return sprintf( '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            // 32 bits for "time_low"
+            mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ),
+
+            // 16 bits for "time_mid"
+            mt_rand( 0, 0xffff ),
+
+            // 16 bits for "time_hi_and_version",
+            // four most significant bits holds version number 4
+            mt_rand( 0, 0x0fff ) | 0x4000,
+
+            // 16 bits, 8 bits for "clk_seq_hi_res",
+            // 8 bits for "clk_seq_low",
+            // two most significant bits holds zero and one for variant DCE1.1
+            mt_rand( 0, 0x3fff ) | 0x8000,
+
+            // 48 bits for "node"
+            mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
+        );
+    }
+
+    function monitor_start($device_id){
+        $this->check_gateway();
+        $url = $this->api_root . "/rti/rtiMon";
+        $data = array(
+            'cmd'       => 'Mon',
+            'cmdOpt'    => 'Start',
+            'deviceId'  => $device_id,
+            'workId'    => $this->gen_uuid(),
+        );
+        $result = $this->lgedm_post($url, $data);
+        #debmes($result, 'lgsmarthinq');
+        $this->workId[$device_id] = $result->workId;
+        return $result->workId;
+    }
+
+    function get_device_work_id($device_id){
+        return $this->workId[$device_id];
+    }
+
+    function monitor_result ($device_id) {
+        $this->check_gateway();
+        $url = $this->api_root . '/rti/rtiResult';
+        $data = array(
+            'workList' => array (
+                array (
+                    'deviceId' => $device_id,
+                    'workId'   => $this->get_device_work_id($device_id),
+                ),
+            ),
+        );
+        $response = $this->lgedm_post($url, $data);
+        $code = $response->returnCd;
+        $result = Null;
+        if ( $code == '0000' && $response->workList ) {
+            $result = $response->workList;
+        }
+        return $result;
+    }
+
+    function monitor_stop($device_id){
+        $this->check_gateway();
+        $url = $this->api_root . "/rti/rtiMon";
+        $data = array(
+            'cmd'       => 'Mon',
+            'cmdOpt'    => 'Stop',
+            'deviceId'  => $device_id,
+            'workId'    => $this->get_device_work_id($device_id),
+        );
+        $result = $this->lgedm_post($url, $data);
+        return $result;
+    }
+
+    function send_command($device_id, $category, $command, $value){
+        # params can be:
+        # $category     $command        $value              $data
+        # Config        Get             "<something>"       ''
+        # Control       Operation       Start               'DAECAgEAAAAAAAAAAAA=' bit program
+        # Control       Operation       Stop                ''
+        # Control       Set
+        $this->check_gateway();
+        $url = $this->api_root . "/rti/rtiControl";
+        $data = array(
+            'cmd'       => $category,
+            'cmdOpt'    => $command,
+            'value'     => $value,
+            'deviceId'  => $device_id,
+            'workId'    => $this->gen_uuid(),
+            'data'      => '',
+            "format"    => "B64",
+        );
+        $response = $this->lgedm_post($url, $data);
+        print_r($response);
+        echo "\n";
+        $code = $response->returnCd;
+        $result = Null;
+        if ( $code == '0000' ) {
+            $result = $response;
+            if ( $result->format == 'B64' ) {
+                $result->decoded_data = $this->decode_data($result->returnData);
+            }
+        }
+        return $result;
+    }
+
+    function decode_data($configuration, $data) {
+        $data = base64_decode($data);
+        $params = $configuration->Monitoring->protocol;
+        $decoded = array();
+        debmes($data);
+        foreach ( $params as $param ) {
+            $key = $param->value;
+            $start_byte = $param->startByte;
+            $len = $param->length;
+            $value = ord(substr($data, $start_byte, $len));
+            $decoded[$key] = (string)$value;
+        }
+        $result = array();
+        foreach ( $decoded as $key=>$decoded_value ) {
+            $value = 0 ;
+            $item = $configuration->Value->$key;
+            $type = $item->type;
+            if ( $type == 'Enum') {
+                $value = $item->option->$decoded_value;
+            } else if ( $type == 'Range' ) {
+                $value = $decoded_value;
+            }
+            $result[$key] = $value;
+        }
+        return $result;
+    }
+
+    function get_device_configuration($url){
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        #debmes($response, 'lgsmarthinq');
+        $result = json_decode($response);
+        return $result;
     }
 
 }

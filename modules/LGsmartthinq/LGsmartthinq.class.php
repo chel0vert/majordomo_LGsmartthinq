@@ -9,7 +9,7 @@
 //API_USERNAME
 //
 
-require_once 'LGAPI.php';
+require DIR_MODULES . '/LGsmartthinq/LGAPI.php';
 
 class LGsmartthinq extends module
 {
@@ -20,6 +20,7 @@ class LGsmartthinq extends module
      *
      * @access private
      */
+
     function __construct()
     {
         $this->name = "LGsmartthinq";
@@ -263,18 +264,80 @@ class LGsmartthinq extends module
     function propertySetHandle($object, $property, $value)
     {
         $this->getConfig();
+        $this->set_tokens_to_api();
         $table = 'lgsmarthinq_values';
-        $properties = SQLSelect("SELECT ID FROM $table WHERE LINKED_OBJECT LIKE '" . DBSafe($object) . "' AND LINKED_PROPERTY LIKE '" . DBSafe($property) . "'");
+        $properties = SQLSelect("SELECT * FROM $table WHERE LINKED_OBJECT LIKE '" . DBSafe($object) . "' AND LINKED_PROPERTY LIKE '" . DBSafe($property) . "'");
         $total = count($properties);
+        #debmes($properties, 'lgsmarthinq');
+        #set_time_limit(60);
+        /*require_once '/var/www/html/modules/LGsmartthinq/LGAPI.php';
+        $this->api = new LGAPI('cheloverts@gmail.com', 'lg210587', 'RU', 'ru-RU');
+        debmes($this->config['API_ACCESS_TOKEN'], 'lgsmarthinq');
+        $this->api->set_access_token($this->config['API_ACCESS_TOKEN']);
+        $this->api->set_gateway();
+        $this->api->login();
+        debmes("api:", 'lgsmarthinq');
+        debmes($this->api, 'lgsmarthinq');*/
+        #debmes($this->api->get_access_token(), 'lgsmarthinq');
         if ($total) {
             for ($i = 0; $i < $total; $i++) {
-                $values = $properties[$i];
-                $linked_object = $values['LINKED_OBJECT'];
-                $linked_method = $values['LINKED_METHOD'];
+                $values         = $properties[$i];
+                $linked_object  = $values['LINKED_OBJECT'];
+                $linked_method  = $values['LINKED_METHOD'];
+                #debmes($linked_object, 'lgsmarthinq');
+                $deviceId       = gg("$linked_object.deviceId");
+                #debmes($deviceId, 'lgsmarthinq');
+                if ( $property == 'command' ) {
+                    $workId = $this->api->monitor_start($deviceId);
+                    debmes("WorkId".$workId, 'lgsmarthinq');
+                    if ( $workId ) {
+                        $result = $this->api->monitor_result($deviceId);
+                        debmes($result, 'lgsmarthinq');
+                        if ($value == 'Start') {
+                            #debmes("Start", 'lgsmarthinq');
+                            $result = $this->api->send_command($deviceId, 'Control', 'Operation', 'Start');
+                            #debmes($result, 'lgsmarthinq');
+                        } else if ($value == 'Stop') {
+                            #debmes("Stop", 'lgsmarthinq');
+                            $result = $this->api->send_command($deviceId, 'Control', 'Operation', 'Stop');
+                            #debmes($result, 'lgsmarthinq');
+                        }  else if ($value == 'WakeUp') {
+                            #debmes("WakeUp", 'lgsmarthinq');
+                            $result = $this->api->send_command($deviceId, 'Control', 'Operation', 'WakeUp');
+                            #debmes($result, 'lgsmarthinq');
+                        } else if ($value == 'Off') {
+                            #debmes("Off", 'lgsmarthinq');
+                            $result = $this->api->send_command($deviceId, 'Control', 'Power', 'Off');
+                            #debmes($result, 'lgsmarthinq');
+                        }
+                        $result = $this->api->monitor_stop($deviceId);
+                        debmes($result, 'lgsmarthinq');
+                    }
+                }
+
                 if (isset($linked_object) && isset($linked_method)) {
                     callMethodSafe("$linked_object.$linked_method");
                 }
             }
+        }
+    }
+
+    function set_tokens_to_api()
+    {
+        $this->getConfig();
+        $access_token = $this->config['API_ACCESS_TOKEN'];
+        $session_id   = $this->config['API_SESSION_ID'];
+        if ( isset($access_token) ) {
+            $this->api->set_access_token($access_token);
+        }
+        if ( isset($session_id) ) {
+            $this->api->set_session_id($session_id);
+        }
+        $country  = $this->config['API_COUNTRY'];
+        $language = $this->config['API_LANGUAGE'];
+        if ( isset($country) && isset($language)) {
+            $this->api->set_api_property("country", $country);
+            $this->api->set_api_property("language", $language);
         }
     }
 
@@ -291,27 +354,39 @@ class LGsmartthinq extends module
     function processCycle()
     {
         $this->getConfig();
-        $this->api->set_api_property("email", $this->config['API_USERNAME']);
-        $this->api->set_api_property("password", $this->config['API_PASSWORD']);
-        $this->api->set_api_property("country", $this->config['API_COUNTRY']);
-        $this->api->set_api_property("language", $this->config['API_LANGUAGE']);
-        $this->api->check_gateway();
+
         if ($this->config['API_REFRESH_PERIOD'] <= 0) {
             return Null;
         }
-
+        $this->set_tokens_to_api();
         $this->api->set_devices();
         $devices = $this->api->get_devices(); # получение устройств с api
-        #debmes($devices, 'lgsmarthinq');
+        debmes($devices, 'lgsmarthinq');
         foreach ($devices as $device) {
-            if (isset($device)) {
-                #debmes($device, 'lgsmarthinq');
-                $device_id = $this->getDeviceIdPerMacAddress($device);
-                #debmes("Device ID: $device_id", 'lgsmarthinq');
-                foreach ($device as $key => $value) {
+
+            #debmes($device, 'lgsmarthinq');
+            $device_id = $this->getDeviceIdPerMacAddress($device);
+            #debmes("Device ID: $device_id", 'lgsmarthinq');
+            foreach ($device as $key => $value) {
+                $this->set_device_property($device_id, $key, $value);
+            }
+
+            if (isset($device) && $device->deviceState != 'D' ) { # $device->deviceState == 'E' значит включена
+                $configuration = $this->api->get_device_configuration($device->modelJsonUrl);
+                $workId = $this->api->monitor_start($device->deviceId);
+                $try = 0 ;
+                do {
+                    $data = $this->api->monitor_result($device->deviceId);
+                    $result = $this->api->decode_data($configuration, $data->returnData);
+                    $try = $try + 1;
+                    sleep(1);
+                } while ( $try < 5 );
+                foreach ($result as $key => $value) {
                     $this->set_device_property($device_id, $key, $value);
                 }
+                $this->api->monitor_stop($device->deviceId);
             }
+
         }
     }
 
