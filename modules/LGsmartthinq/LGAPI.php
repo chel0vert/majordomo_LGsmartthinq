@@ -22,6 +22,7 @@ class LGAPI
     private $password       = Null;
     private $devices        = array();
     private $workId         = array();
+    private $error          = Null;
 
     function __construct($email, $password, $country, $language,$access_token=Null,$session_id=Null)
     {
@@ -65,8 +66,8 @@ class LGAPI
                 array_push($headers, 'x-thinq-jsessionId: ' . $this->session_id);
             }
 
-            debmes($headers, 'lgsmarthinq');
-            debmes($url, 'lgsmarthinq');
+            #debmes($headers, 'lgsmarthinq');
+            #debmes($url, 'lgsmarthinq');
             debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
@@ -79,10 +80,10 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            #print_r($response);
-            #echo "\n";
+            print_r($response);
+            echo "\n";
             $result = json_decode($response);
-            debmes($result, 'lgsmarthinq');
+            #debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
             $code = $result->$data_root->returnCd;
             if ($code == "0102" || $code == "9003") {
@@ -95,9 +96,12 @@ class LGAPI
                 #$this->update_access_token();
                 $this->login();
                 #return Null;
+                $this->set_api_error($response);
             } else if ($code == '0000') {
                 $success = true;
+                $this->set_api_error(Null); # unset error
             } else {
+                $this->set_api_error($response);
                 #debmes("Error response: $response", 'lgsmarthinq');
                 #debmes("Do request againg. Try: $try", 'lgsmarthinq');
                 echo $response;
@@ -115,17 +119,9 @@ class LGAPI
         #echo $url;
         $login    = $this->email;
         $password = $this->password;
-        #debmes("Start login via selenium", 'lgsmarthinq');
-        #debmes($url, 'lgsmarthinq');
-        #debmes($login, 'lgsmarthinq');
-        #debmes($password, 'lgsmarthinq');
-        #ini_set('max_execution_time', '300');
         $command = "/usr/bin/python3 /var/www/html/modules/LGsmartthinq/login.py --url '$url' --login '$login' --password '$password'";
         debmes($command, 'lgsmarthinq');
-        #echo $command;
-        #$command = '';
         $result = exec ($command);
-        #echo $result;
         debmes("result command: ".$result, 'lgsmarthinq');
         $json = json_decode($result);
         $this->set_access_token((string)$json->access_token);
@@ -182,13 +178,11 @@ class LGAPI
     function set_access_token($access_token = Null)
     {
         $this->access_token = $access_token;
-        #debmes("new access_token: '$access_token'", 'lgsmarthinq');
     }
 
     function set_refresh_token($refresh_token = Null)
     {
         $this->refresh_token = $refresh_token;
-        #debmes("new refresh_token: '$refresh_token'", 'lgsmarthinq');
     }
 
     function get_refresh_token()
@@ -274,7 +268,11 @@ class LGAPI
         $url = $this->api_root . "/device/deviceList";
         $data = array();
         $result = $this->lgedm_post($url, $data);
-        $this->devices = $this->get_items($result);
+        if ( count($result) > 0 ) {
+            $this->devices = $this->get_items($result);
+        } else {
+            $this->devices = Null;
+        }
         return $this->devices;
     }
 
@@ -322,7 +320,11 @@ class LGAPI
     }
 
     function get_device_work_id($device_id){
-        return $this->workId[$device_id];
+        $result = $this->workId[$device_id];
+        if ( !$result ) {
+            $result = $this->gen_uuid();
+        }
+        return $result;
     }
 
     function monitor_result ($device_id) {
@@ -358,7 +360,7 @@ class LGAPI
         return $result;
     }
 
-    function send_command($device_id, $category, $command, $value){
+    function send_command($device, $category, $command, $value){
         # params can be:
         # $category     $command        $value              $data
         # Config        Get             "<something>"       ''
@@ -367,34 +369,60 @@ class LGAPI
         # Control       Set
         $this->check_gateway();
         $url = $this->api_root . "/rti/rtiControl";
+
         $data = array(
             'cmd'       => $category,
             'cmdOpt'    => $command,
             'value'     => $value,
-            'deviceId'  => $device_id,
-            'workId'    => $this->gen_uuid(),
+            'deviceId'  => $device->deviceId,
+            'workId'    => $this->get_device_work_id($device->deviceId),
             'data'      => '',
             "format"    => "B64",
         );
+
+        if ( $device->Course ) {
+            $send_data = $this->make_start_programm($device, $device->Course);
+            debmes("Data: ".$send_data,'lgsmarthinq');
+            $data['data']   = $send_data;
+        }
+
         $response = $this->lgedm_post($url, $data);
-        print_r($response);
-        echo "\n";
+        #print_r($response);
+        #echo "\n";
         $code = $response->returnCd;
         $result = Null;
         if ( $code == '0000' ) {
             $result = $response;
             if ( $result->format == 'B64' ) {
-                $result->decoded_data = $this->decode_data($result->returnData);
+                $result->decoded_data = $this->decode_data($device, $result->returnData);
             }
         }
         return $result;
     }
 
-    function decode_data($configuration, $data) {
+    function start_command ($device, $category, $command, $value) {
+        $workId = $this->monitor_start($device->deviceId);
+        if ( $workId ) {
+            $this->monitor_result($device->deviceId);
+            $result = $this->send_command($device, $category, $command, $value);
+            $this->monitor_stop($device->deviceId);
+        } else {
+            debmes('Can not start monitor', 'lgsmarthinq');
+        }
+        return $result;
+    }
+
+    function decode_data($device, $data) {
+        debmes($data,'lgsmarthinq');
+        $configuration = $this->get_device_configuration($device);
+        #$localization  = $this->get_device_localization($device);
+        #debmes('local', 'lgsmarthinq');
+        #debmes($localization, 'lgsmarthinq');
+        #$locale = $this->country;
         $data = base64_decode($data);
         $params = $configuration->Monitoring->protocol;
         $decoded = array();
-        debmes($data);
+        #debmes($data);
         foreach ( $params as $param ) {
             $key = $param->value;
             $start_byte = $param->startByte;
@@ -411,23 +439,173 @@ class LGAPI
                 $value = $item->option->$decoded_value;
             } else if ( $type == 'Range' ) {
                 $value = $decoded_value;
+            } else if ( $type == 'Reference' ) {
+                $new_key  = $item->option[0];
+                if ( $new_key ) {
+                    $new_item = $configuration->$new_key->$decoded_value;
+                    if ( $new_item && $new_item->name ) {
+                        $value = $new_item->name;
+                    } else if ( $new_item && $new_item->label) {
+                        $value = $new_item->label;
+                    }
+                }
             }
             $result[$key] = $value;
+            #$value = preg_replace('/^\@/u', '\@', $value);
+/*
+            if ( preg_match('/^\@/', $value, $matches)) {
+                try {
+                    $localized_value = $localization->pack->$value;
+                } catch (Exception $e) {
+                    debmes($e, 'lgsmarthinq');
+                }
+                if ($localized_value && $locale) {
+                    $result["$key\_$locale"] = $localized_value;
+                }
+                #debmes($localization, 'lgsmarthinq');
+                #debmes($key, 'lgsmarthinq');
+                #debmes($value, 'lgsmarthinq');
+                #debmes($localized_value, 'lgsmarthinq');
+                #debmes("$key\_$locale", 'lgsmarthinq');
+            }
+*/
         }
+
         return $result;
     }
 
-    function get_device_configuration($url){
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        $response = curl_exec($ch);
-        curl_close($ch);
-        #debmes($response, 'lgsmarthinq');
-        $result = json_decode($response);
+
+
+    function get_device_configuration($device){
+        $type = $device->deviceType;
+        $filename = __DIR__."/LGAPI_configuration_$type.json";
+        if ( file_exists($filename) && (time() - filemtime($filename)) <= (24 * 60 * 60) ) {
+            $content = file_get_contents($filename);
+            if ( $content ) {
+                $result = json_decode($content);
+            }
+        }
+
+        $url = $device->modelJsonUrl;
+        if (!$result && $url) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            if ( $response ) {
+                $response = preg_replace('/^\x{feff}/u', '', $response);
+                file_put_contents($filename, $response);
+                #debmes($response, 'lgsmarthinq');
+                $result = json_decode($response);
+            }
+        }
+
+        return $result;
+    }
+
+    function get_device_localization($device){
+
+        $type = $device->deviceType;
+        $filename = __DIR__."/LGAPI_localization_$type.json";
+        if ( file_exists($filename) && (time() - filemtime($filename)) <= (24 * 60 * 60) ) {
+            $content = file_get_contents($filename);
+            if ( $content ) {
+                $result = json_decode($content);
+            }
+        }
+
+        $url = $device->langPackProductTypeUri;
+        #debmes("lang url $url", 'lgsmarthinq');
+        if (!$result && $url) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            if ( $response ) {
+                $response = preg_replace('/^\x{feff}/u', '', $response);
+                $result = json_decode($response);
+                $url = $device->langPackModelUri;
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                $response = curl_exec($ch);
+                curl_close($ch);
+                $response = preg_replace('/^\x{feff}/u', '', $response);
+                $langPackModelUri = json_decode($response);
+                foreach ($langPackModelUri->pack as $key=>$value) {
+                    $result->pack->$key = $value;
+                }
+                $content = json_encode($result);
+                file_put_contents($filename, $content);
+                #debmes($response, 'lgsmarthinq');
+
+            }
+        }
+        #debmes($result->pack->"@WM_TITAN2_OPTION_ECO_HYBRID_W", 'lgsmarthinq');
+        #exit;
+        return $result;
+    }
+
+    function get_api_error(){
+        return $this->error;
+    }
+
+    function set_api_error($error){
+        return $this->error;
+    }
+
+    function make_start_programm($device, $course){ #course=program
+        $config = $this->get_device_configuration($device);
+        $template = $config->ControlWifi->action->OperationStart->data;
+        #debmes("make_programm: template = $template", 'lgsmarthinq');
+        #debmes("make_programm: config", 'lgsmarthinq');
+        #debmes($config, 'lgsmarthinq');
+        $course_config = $config->Course->$course;
+        if ( !$course_config ) {
+            $course_config = $config->SmartCourse->$course;
+        }
+
+        if ( $course_config ) {
+            $course_name = $course_config->name;
+            #debmes("make_programm: Course name = $course_name", 'lgsmarthinq');
+            $items = $course_config->function;
+            $params = array();
+            foreach ($items as $item) {
+                $name   = $item->value;
+                $value  = $item->default;
+                $params[$name] = $value;
+            }
+            $params['Course'] = $course;
+            $params['Option2'] = 3;
+            foreach($params as $key=>$value){
+                $template = preg_replace("/\{\{$key\}\}/","$value", $template);
+            }
+            $template = preg_replace("/\{\{\w+\}\}/",0, $template);
+            $template = preg_replace("/^\[|\]$/",'', $template);
+            debmes($template, 'lgsmarthinq');
+            $array = preg_split("/,/", $template);
+            foreach ($array as $byte_number=>$byte) {
+                $result = $result.pack("C*",$byte);
+            }
+
+            if ($result){
+                $result = base64_encode($result);
+            }
+            debmes($array, 'lgsmarthinq');
+        } else {
+            debmes("make_programm: No course = $course", 'lgsmarthinq');
+        }
         return $result;
     }
 

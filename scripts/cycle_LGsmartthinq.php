@@ -19,7 +19,7 @@ $api->login();
 $access_token = $api->get_access_token();
 if ( !$access_token ) {
     echo "No access token\n";
-    say("No access token for LG smartthinq" ,1);
+    debmes("No access token for LG smartthinq" ,'lgsmarthinq');
     #exit;
 } else {
     $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();
@@ -53,7 +53,7 @@ while (1) {
         $expire                     = $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'];
         $last_access_token_check    = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
         $current_timestamp = time();
-        if ( ($current_timestamp - $last_access_token_check) > $expire ) {
+        if ( ($current_timestamp - $last_access_token_check) > $expire || !$api->get_access_token() || $api->get_api_error() ) {
             $api->update_access_token();
             $api->login();
             $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();
