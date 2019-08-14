@@ -16,9 +16,6 @@ parser.add_argument('--password' ,     help='user password')
 parser.add_argument('--url',           help='login url')
 args = parser.parse_args()
 
-#print (args.login)
-#print (args.password)
-
 vdisplay = Xvfb()
 vdisplay.start()
 
@@ -28,15 +25,11 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-setuid-sandbox")
 driver = webdriver.Firefox(options=options)
 driver.get(args.url)
-#time.sleep(5)
 driver.find_element_by_xpath('//input[@id="uid"]').send_keys(args.login)
-#time.sleep(5)
 driver.find_element_by_xpath('//input[@id="upw"]').send_keys(args.password)
-#time.sleep(5)
 driver.find_element_by_xpath('//button[@id="btn_login"]').click()
 time.sleep(2)
 url = driver.current_url
-#print (url)
 params = parse_qs(urlparse(url).query)
 try:
     access_token = params['access_token'][0]

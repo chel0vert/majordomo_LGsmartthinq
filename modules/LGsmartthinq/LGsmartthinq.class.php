@@ -274,8 +274,8 @@ class LGsmartthinq extends module
                 $linked_object  = $values['LINKED_OBJECT'];
                 $linked_method  = $values['LINKED_METHOD'];
                 #debmes($linked_object, 'lgsmarthinq');
-                debmes($property, 'lgsmarthinq');
-                debmes($value, 'lgsmarthinq');
+                #debmes($property, 'lgsmarthinq');
+                #debmes($value, 'lgsmarthinq');
                 $deviceId                   = gg("$linked_object.deviceId");
                 $deviceType                 = gg("$linked_object.deviceType");
                 $modelJsonUrl               = gg("$linked_object.modelJsonUrl");
@@ -491,12 +491,17 @@ EOD;
 
     function getDeviceIdPerMacAddress($device)
     {
+        if ( !$device->macAddress ) {
+            return Null;
+        }
+
         $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
         if (!isset($values)) {
             $values = array(
                 'TITLE'     => $device->alias,
                 'MAC'       => $device->macAddress,
                 'IMAGE'     => $device->smallImageUrl,
+                'UPDATED'   => date('Y-m-d H:i:s'),
             );
             SQLInsert('lgsmarthinq_devices', $values);
             $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");

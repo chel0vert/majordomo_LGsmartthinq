@@ -54,6 +54,10 @@ while (1) {
         $last_access_token_check    = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
         $current_timestamp = time();
         if ( ($current_timestamp - $last_access_token_check) > $expire || !$api->get_access_token() || $api->get_api_error() ) {
+            $api->set_api_property('email',     $LGsmartthinq_module->config['API_USERNAME']);
+            $api->set_api_property('password',  $LGsmartthinq_module->config['API_PASSWORD']);
+            $api->set_api_property('country',   $LGsmartthinq_module->config['API_COUNTRY']);
+            $api->set_api_property('language',  $LGsmartthinq_module->config['API_LANGUAGE']);
             $api->update_access_token();
             $api->login();
             $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();

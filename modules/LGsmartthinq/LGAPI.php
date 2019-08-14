@@ -68,7 +68,7 @@ class LGAPI
 
             #debmes($headers, 'lgsmarthinq');
             #debmes($url, 'lgsmarthinq');
-            debmes($json_request, 'lgsmarthinq');
+            #debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -80,8 +80,8 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            print_r($response);
-            echo "\n";
+            #print_r($response);
+            #echo "\n";
             $result = json_decode($response);
             #debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
@@ -382,7 +382,7 @@ class LGAPI
 
         if ( $device->Course ) {
             $send_data = $this->make_start_programm($device, $device->Course);
-            debmes("Data: ".$send_data,'lgsmarthinq');
+            #debmes("Data: ".$send_data,'lgsmarthinq');
             $data['data']   = $send_data;
         }
 
@@ -412,8 +412,26 @@ class LGAPI
         return $result;
     }
 
+    function delete_permission_command($device){
+        $this->check_gateway();
+        $url = $this->api_root . "/rti/delControlPermission";
+
+        $data = array(
+            'deviceId'  => $device->deviceId,
+        );
+
+        $response = $this->lgedm_post($url, $data);
+        $code = $response->returnCd;
+        $result = Null;
+        if ( $code == '0000' ) {
+            $result = $response;
+        }
+        #debmes($response, 'lgsmarthinq');
+        return $result;
+    }
+
     function decode_data($device, $data) {
-        debmes($data,'lgsmarthinq');
+        #debmes($data,'lgsmarthinq');
         $configuration = $this->get_device_configuration($device);
         #$localization  = $this->get_device_localization($device);
         #debmes('local', 'lgsmarthinq');
@@ -593,7 +611,7 @@ class LGAPI
             }
             $template = preg_replace("/\{\{\w+\}\}/",0, $template);
             $template = preg_replace("/^\[|\]$/",'', $template);
-            debmes($template, 'lgsmarthinq');
+            #debmes($template, 'lgsmarthinq');
             $array = preg_split("/,/", $template);
             foreach ($array as $byte_number=>$byte) {
                 $result = $result.pack("C*",$byte);
@@ -602,11 +620,18 @@ class LGAPI
             if ($result){
                 $result = base64_encode($result);
             }
-            debmes($array, 'lgsmarthinq');
+            #debmes($array, 'lgsmarthinq');
         } else {
             debmes("make_programm: No course = $course", 'lgsmarthinq');
         }
         return $result;
+    }
+
+    function check_device_online_status($device){
+        $type = $device->deviceType;
+        if ( $type == 201 ) { # washer
+
+        }
     }
 
 }
