@@ -13,6 +13,7 @@ class LGAPI
     private $DATA_ROOT      = 'lgedmRoot';
     private $SVC_CODE       = 'SVC202';
     private $CLIENT_ID      = 'LGAO221A02';
+    private $DATE_FORMAT = 'D, j M Y H:i:s +0000';
     private $auth_base      = Null;
     private $api_root       = Null;
     private $oauth_root     = Null;
@@ -121,14 +122,20 @@ class LGAPI
         $login    = $this->email;
         $password = $this->password;
 
-        $command = "python3 ".dirname(__FILE__)."/login.py --url '$url' --login '$login' --password '$password'";
-        debmes($command, 'lgsmarthinq');
-        $result = exec ($command);
-        debmes("result command: ".$result, 'lgsmarthinq');
-        $json = json_decode($result);
-        $this->set_access_token((string)$json->access_token);
-        $this->set_refresh_token((string)$json->refresh_token);
-        debmes($json, 'lgsmarthinq');
+        $refresh_token = $this->get_refresh_token();
+        if ( $refresh_token ) {
+            $access_token = $this->get_new_access_token($refresh_token);
+            $this->set_access_token($access_token);
+        } else {
+            $command = "python3 " . dirname(__FILE__) . "/login.py --url '$url' --login '$login' --password '$password'";
+            debmes($command, 'lgsmarthinq');
+            $result = exec($command);
+            debmes("result command: " . $result, 'lgsmarthinq');
+            $json = json_decode($result);
+            $this->set_access_token((string)$json->access_token);
+            $this->set_refresh_token((string)$json->refresh_token);
+            debmes($json, 'lgsmarthinq');
+        }
         return (string)$this->access_token;
     }
 
@@ -249,6 +256,68 @@ class LGAPI
         $this->set_session_id((string)$result->jsessionId);
         #debmes((string)$result->jsessionId, 'lgsmarthinq');
         $this->devices = $this->get_items($result);
+        return $result;
+    }
+
+    function get_new_access_token( $refresh_token=Null){
+        if ( !$refresh_token ) {
+            return Null;
+        }
+        $result = Null;
+
+        $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
+        debmes($url, 'lgsmarthinq');
+
+        $headers = array(
+            'Host: ru.lgeapi.com',
+            'Sec-Fetch-Mode: cors',
+            'Origin: file://',
+            'User-Agent: Mozilla/5.0 (Linux; Android 9; COL-L29 Build/HUAWEICOL-L29; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/76.0.3809.111 Mobile Safari/537.36',
+            'Accept: application/json',
+            'x-lge-oauth-date: '.$this->oauth2_datetime(),
+            "x-lge-appkey: ".$this->CLIENT_ID,
+            'x-lge-oauth-signature: ',
+            'X-Requested-With: com.lgeha.nuts',
+            'Sec-Fetch-Site: cross-site',
+            'Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Pragma: no-cache',
+            'Cache-Control: no-cache'
+        );
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, "grant_type=refresh_token&refresh_token=$refresh_token");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        $json = json_decode($response);
+        $result = $json->access_token;
+        return $result;
+    }
+
+    function oauth2_datetime() {
+        /*
+        $url = $this->OAUTH_API_URL."/datetime";
+        $headers = array(
+            'Accept: application/json',
+        );
+        $ch = curl_init($url);
+        curl_setopt($ch,CURLOPT_PROTOCOLS,CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST,'GET');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $response = curl_exec($ch);
+        debmes($response, 'lgsmarthinq');
+        curl_close($ch);
+        $json = json_decode($response);
+        debmes($json, 'lgsmarthinq');*/
+        $result = date($this->DATE_FORMAT, time() - 3 * 60 * 60);
+        debmes("Date:".$result,'lgsmarthinq');
         return $result;
     }
 
