@@ -67,8 +67,8 @@ class LGAPI
             }
 
             #debmes($headers, 'lgsmarthinq');
-            #debmes($url, 'lgsmarthinq');
-            #debmes($json_request, 'lgsmarthinq');
+            debmes($url, 'lgsmarthinq');
+            debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -80,8 +80,8 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            #print_r($response);
-            #echo "\n";
+            print_r($response);
+            echo "\n";
             $result = json_decode($response);
             #debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
@@ -90,6 +90,7 @@ class LGAPI
                 if ($code == '9003') {
                     debmes("Session creation failure", 'lgsmarthinq');
                 } else {
+                    debmes($json_request, 'lgsmarthinq');
                     debmes($response, 'lgsmarthinq');
                     debmes($result->$data_root->returnMsg, 'lgsmarthinq');
                 }
@@ -119,7 +120,8 @@ class LGAPI
         #echo $url;
         $login    = $this->email;
         $password = $this->password;
-        $command = "/usr/bin/python3 /var/www/html/modules/LGsmartthinq/login.py --url '$url' --login '$login' --password '$password'";
+
+        $command = "python3 ".dirname(__FILE__)."/login.py --url '$url' --login '$login' --password '$password'";
         debmes($command, 'lgsmarthinq');
         $result = exec ($command);
         debmes("result command: ".$result, 'lgsmarthinq');
@@ -375,7 +377,7 @@ class LGAPI
             'cmdOpt'    => $command,
             'value'     => $value,
             'deviceId'  => $device->deviceId,
-            'workId'    => $this->get_device_work_id($device->deviceId),
+            'workId'    => $this->gen_uuid(),
             'data'      => '',
             "format"    => "B64",
         );
@@ -430,6 +432,60 @@ class LGAPI
         return $result;
     }
 
+    function update_course_command($device, $params=array()){
+/*Values can get from json config
+        $params = array(
+            'Course'            => 0,
+            'Wash'              => 0,
+            'SpinSpeed'         => 0,
+            'WaterTemp'         => 0,
+            'RinseOption'       => 0,
+            'Reserve_Time_H'    => 0,
+            'Reserve_Time_M'    => 0,
+            'LoadItem'          => 0,
+            'Option1'           => 0,
+            'Option2'           => 0,
+            'SmartCourse'       => 0,
+        );
+*/
+        $this->check_gateway();
+        $url = $this->api_root . "/washer/courseUpdate";
+
+        $data = array(
+            'deviceId'      => $device->deviceId,
+            'courseData'    => $this->gen_custom_course($device, $params),
+            'selectedCd'    => $device->Course,
+        );
+
+        debmes($data, 'lgsmarthinq');
+        $response = $this->lgedm_post($url, $data);
+        $code = $response->returnCd;
+        $result = Null;
+        if ( $code == '0000' ) {
+            $result = $response;
+        }
+        debmes($response, 'lgsmarthinq');
+        return $result;
+    }
+
+    function gen_custom_course ($device, $params) { # course = 3 is 'My programm'
+        $data = $this->pack_course($device, $params);
+        if ( $data ) {
+            $xml = new SimpleXMLElement('<COURSE/>');
+            $xml->addChild('DATA', $this->pack_course($device, $params));
+            $xml->addChild('ID', $device->Course);
+            $NAME = $xml->addChild('NAME', '');
+            $NAME->addChild('EN', 'My programm');
+            $DESCRIPTION = $xml->addChild('DESCRIPTION', '');
+            $DESCRIPTION->addChild('EN', 'Custom programm');
+            $result = $xml->asXML();
+            debmes($result, 'lgsmarthinq');
+        } else {
+            debmes('can not create custom programm', 'lgsmarthinq');
+        }
+        return base64_encode($result);
+    }
+
     function decode_data($device, $data) {
         #debmes($data,'lgsmarthinq');
         $configuration = $this->get_device_configuration($device);
@@ -440,7 +496,6 @@ class LGAPI
         $data = base64_decode($data);
         $params = $configuration->Monitoring->protocol;
         $decoded = array();
-        #debmes($data);
         foreach ( $params as $param ) {
             $key = $param->value;
             $start_byte = $param->startByte;
@@ -488,7 +543,7 @@ class LGAPI
             }
 */
         }
-
+        #debmes($result);
         return $result;
     }
 
@@ -606,23 +661,31 @@ class LGAPI
             }
             $params['Course'] = $course;
             $params['Option2'] = 3;
-            foreach($params as $key=>$value){
-                $template = preg_replace("/\{\{$key\}\}/","$value", $template);
-            }
-            $template = preg_replace("/\{\{\w+\}\}/",0, $template);
-            $template = preg_replace("/^\[|\]$/",'', $template);
-            #debmes($template, 'lgsmarthinq');
-            $array = preg_split("/,/", $template);
-            foreach ($array as $byte_number=>$byte) {
-                $result = $result.pack("C*",$byte);
-            }
-
-            if ($result){
-                $result = base64_encode($result);
-            }
-            #debmes($array, 'lgsmarthinq');
+            $result = $this->pack_course($device, $params);
+            #debmes($result, 'lgsmarthinq');
         } else {
             debmes("make_programm: No course = $course", 'lgsmarthinq');
+        }
+        return $result;
+    }
+
+    function pack_course($device, $course_params=array()){
+        $config = $this->get_device_configuration($device);
+        $template = $config->ControlWifi->action->OperationStart->data;
+        $result = Null;
+        foreach($course_params as $key=>$value){
+            $template = preg_replace("/\{\{$key\}\}/","$value", $template);
+        }
+        $template = preg_replace("/\{\{\w+\}\}/",0, $template);
+        $template = preg_replace("/^\[|\]$/",'', $template);
+        #debmes($template, 'lgsmarthinq');
+        $array = preg_split("/,/", $template);
+        foreach ($array as $byte_number=>$byte) {
+            $result = $result.pack("C*",$byte);
+        }
+
+        if ($result){
+            $result = base64_encode($result);
         }
         return $result;
     }

@@ -365,28 +365,40 @@ class LGsmartthinq extends module
 
                 #debmes($device, 'lgsmarthinq');
                 $device_id = $this->getDeviceIdPerMacAddress($device);
-                #debmes("Device ID: $device_id", 'lgsmarthinq');
-                foreach ($device as $key => $value) {
-                    $this->set_device_property($device_id, $key, $value);
-                }
-
-                if (isset($device) && $device->deviceState != 'D') { # $device->deviceState == 'E' значит включена
-                    $workId = $this->api->monitor_start($device->deviceId);
-                    $try = 0;
-                    do {
-                        $data = $this->api->monitor_result($device->deviceId);
-                        if ( $data->returnData ) {
-                            $result = $this->api->decode_data($device, $data->returnData);
-                        }
-                        $try = $try + 1;
-                        sleep(1);
-                    } while ($try < 5);
-                    foreach ($result as $key => $value) {
+                if ($device_id) {
+                    #debmes("Device ID: $device_id", 'lgsmarthinq');
+                    foreach ($device as $key => $value) {
                         $this->set_device_property($device_id, $key, $value);
                     }
-                    $this->api->monitor_stop($device->deviceId);
-                }
 
+                    if (isset($device) && $device->deviceState != 'D') { # $device->deviceState == 'E' значит включена
+                        $workId = $this->api->monitor_start($device->deviceId);
+                        $try = 0;
+                        $exit_flag = False;
+                        do {
+                            $data = $this->api->monitor_result($device->deviceId);
+                            $returnCode = $data->workList->returnCode;
+                            if ($returnCode != '0000') {
+                                $this->api->monitor_start($device->deviceId);
+                            } else {
+                                if ($data->returnData) {
+                                    $result = $this->api->decode_data($device, $data->returnData);
+                                }
+                            }
+                            $try = $try + 1;
+                            sleep(1);
+                        } while ($try < 5 && !$exit_flag);
+                        if ( $result ) {
+                            foreach ($result as $key => $value) {
+                                print_r($key);
+                                print_r($value);
+                                $this->set_device_property($device_id, $key, $value);
+                            }
+                        }
+                        $this->api->monitor_stop($device->deviceId);
+                    }
+
+                }
             }
         }
     }
@@ -522,19 +534,22 @@ EOD;
 
     function set_device_property($id, $property, $value)
     {
-        if (!$id) {
+        if (!$id || !$property || is_object($value) || !is_string($property) ) {
             return Null;
+        } else if ( is_array($value) ) {
+            $value = json_encode($value);
         }
         $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID='$id' and TITLE='$property'");
         if (isset($values) && isset($values['ID'])) {
-            $values['VALUE'] = "$value";
+            $values['VALUE'] = $value;
             SQLUpdate('lgsmarthinq_values', $values);
             #debmes("update device id($id) property $property => $value ", 'lgsmarthinq');
         } else {
+            #print_r($value);
             $values = array(
                 'TITLE' => $property,
                 'DEVICE_ID' => $id,
-                'VALUE' => "$value",
+                'VALUE' => $value,
             );
             #debmes("insert device id($id) property $property => $value", 'lgsmarthinq');
             SQLInsert('lgsmarthinq_values', $values);
