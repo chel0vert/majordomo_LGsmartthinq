@@ -13,7 +13,7 @@ include_once(DIR_MODULES . 'LGsmartthinq/LGsmartthinq.class.php');
 include_once(DIR_MODULES . 'LGsmartthinq/LGAPI.php');
 $LGsmartthinq_module = new LGsmartthinq();
 $module_config = $LGsmartthinq_module->getConfig();
-$api = new LGAPI($module_config['API_USERNAME'], $module_config['API_PASSWORD'], $module_config['API_COUNTRY'], $module_config['API_LANGUAGE']);
+$api = new LGAPI($module_config['API_COUNTRY'], $module_config['API_LANGUAGE'], $module_config['API_ACCESS_TOKEN'], $module_config['API_REFRESH_TOKEN'], Null);
 $refresh_token = $LGsmartthinq_module->config['API_REFRESH_TOKEN'];
 if ( $refresh_token ) {
     $api->set_refresh_token($refresh_token);
@@ -24,7 +24,6 @@ $access_token = $api->get_access_token();
 if ( !$access_token ) {
     echo "No access token\n";
     debmes("No access token for LG smartthinq" ,'lgsmarthinq');
-    #exit;
 } else {
     $LGsmartthinq_module->config['API_ACCESS_TOKEN']            = $api->get_access_token();
     $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE']     = 3600;
@@ -58,8 +57,6 @@ while (1) {
         $last_access_token_check    = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
         $current_timestamp = time();
         if ( ($current_timestamp - $last_access_token_check) > $expire || !$api->get_access_token() || $api->get_api_error() ) {
-            $api->set_api_property('email',     $LGsmartthinq_module->config['API_USERNAME']);
-            $api->set_api_property('password',  $LGsmartthinq_module->config['API_PASSWORD']);
             $api->set_api_property('country',   $LGsmartthinq_module->config['API_COUNTRY']);
             $api->set_api_property('language',  $LGsmartthinq_module->config['API_LANGUAGE']);
             $api->update_access_token();
