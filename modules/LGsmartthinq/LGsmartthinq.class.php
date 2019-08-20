@@ -279,41 +279,58 @@ class LGsmartthinq extends module
                 #debmes($linked_object, 'lgsmarthinq');
                 #debmes($property, 'lgsmarthinq');
                 #debmes($value, 'lgsmarthinq');
-                $deviceId = gg("$linked_object.deviceId");
-                $deviceType = gg("$linked_object.deviceType");
-                $modelJsonUrl = gg("$linked_object.modelJsonUrl");
-                $langPackModelUri = gg("$linked_object.langPackModelUri");
-                $langPackProductTypeUri = gg("$linked_object.langPackProductTypeUri");
-                $Course = gg("$linked_object.Programm");
-                #debmes($deviceId, 'lgsmarthinq');
-                $device = array(
-                    deviceId => $deviceId,
-                    modelJsonUrl => $modelJsonUrl,
-                    deviceType => $deviceType,
-                    langPackModelUri => $langPackModelUri,
-                    langPackProductTypeUri => $langPackProductTypeUri,
-                    Course => $Course,
-                );
-                if ($property == 'command') {
-                    if ($value == 'Start' && $Course >= 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
-                    } else if ($value == 'Stop') {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
-                    } else if ($value == 'WakeUp') {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'WakeUp');
-                    } else if ($value == 'Off') {
-                        $this->api->start_command((object)$device, 'Control', 'Power', 'Off');
+                if ( $linked_object ) {
+                    $deviceId = gg("$linked_object.deviceId");
+                    $deviceType = gg("$linked_object.deviceType");
+                    $modelJsonUrl = gg("$linked_object.modelJsonUrl");
+                    $langPackModelUri = gg("$linked_object.langPackModelUri");
+                    $langPackProductTypeUri = gg("$linked_object.langPackProductTypeUri");
+                    $Course = gg("$linked_object.Programm");
+                    #debmes($deviceId, 'lgsmarthinq');
+                    $device = array(
+                        deviceId => $deviceId,
+                        modelJsonUrl => $modelJsonUrl,
+                        deviceType => $deviceType,
+                        langPackModelUri => $langPackModelUri,
+                        langPackProductTypeUri => $langPackProductTypeUri,
+                        Course => $Course,
+                    );
+                    if ($property == 'command') {
+                        if ($value == 'Start' && $Course >= 0) {
+                            $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
+                        } else if ($value == 'Stop') {
+                            $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
+                        } else if ($value == 'WakeUp') {
+                            $this->api->start_command((object)$device, 'Control', 'Operation', 'WakeUp');
+                        } else if ($value == 'Off') {
+                            $this->api->start_command((object)$device, 'Control', 'Power', 'Off');
+                        } else if ($value == 'SetProgramm' && $Course) {
+                            $params = array(
+                                'Course'            => $Course,
+                                'Wash'              => gg("$linked_object.Programm"),
+                                'SpinSpeed'         => gg("$linked_object.SpinSpeed"),
+                                'WaterTemp'         => gg("$linked_object.WaterTemp"),
+                                'RinseOption'       => 0,
+                                'Reserve_Time_H'    => 0,
+                                'Reserve_Time_M'    => 0,
+                                'LoadItem'          => 0,
+                                'Option1'           => 3,
+                                'Option2'           => 0,
+                                'SmartCourse'       => 0,
+                            );
+                            $this->api->update_course_command((object)$device, $params);
+                        }
+                    } else if ($property == 'status') {
+                        if ($value == 1 && $Course >= 0) {
+                            $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
+                        } else if ($value == 0) {
+                            $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
+                        }
                     }
-                } else if ($property == 'status') {
-                    if ($value == 1 && $Course >= 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
-                    } else if ($value == 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
-                    }
-                }
 
-                if (isset($linked_object) && isset($linked_method)) {
-                    callMethodSafe("$linked_object.$linked_method");
+                    if ($linked_method) {
+                        callMethodSafe("$linked_object.$linked_method");
+                    }
                 }
             }
         }
@@ -388,8 +405,8 @@ class LGsmartthinq extends module
                             } else {
                                 if ($data->returnData) {
                                     $result = $this->api->decode_data($device, $data->returnData);
-                                    debmes('decoded:', 'lgsmarthinq');
-                                    debmes($result, 'lgsmarthinq');
+                                    #debmes('decoded:', 'lgsmarthinq');
+                                    #debmes($result, 'lgsmarthinq');
                                 }
                             }
                             $try = $try + 1;
@@ -397,8 +414,8 @@ class LGsmartthinq extends module
                         } while ($try < 5);
                         if ($result) {
                             foreach ($result as $key => $value) {
-                                print_r($key);
-                                print_r($value);
+                                #print_r($key);
+                                #print_r($value);
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }

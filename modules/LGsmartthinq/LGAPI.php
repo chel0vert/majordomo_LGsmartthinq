@@ -555,6 +555,7 @@ class LGAPI
             $value = 0;
             $item = $configuration->Value->$key;
             $type = $item->type;
+            $id   = $decoded_value;
             if ($type == 'Enum') {
                 $value = $item->option->$decoded_value;
             } else if ($type == 'Range') {
@@ -569,10 +570,34 @@ class LGAPI
                         $value = $new_item->label;
                     }
                 }
+            } else if ( $type == 'Bit' ) {
+                $bits= array();
+                for ($i=0; $i<8; $i++) {
+                    $bits[$i] = (ord($decoded_value) & (1<<$i))>>$i;
+                }
+                foreach ($item->option as $option) {
+                    $bit_key    = $option->value;
+                    $id         = $bits[(string)$option->startbit];
+                    $new_item   = $configuration->Value->$bit_key;
+                    $value      = $new_item->option->$id;
+                    if ( !$value ) {
+                        $value = $option->default;
+                    }
+                    if ( !$value ) {
+                        $value = $id;
+                    }
+                    $result[$bit_key]          = $value;
+                    #$result[$bit_key."_ID"]    = $id;
+                }
             }
-            $result[$key] = $value;
+            if ( $key ) {
+                $result[$key] = $value;
+            }
+            if ( isset($id) ) {
+                #$result[$key."_ID"] = $id;
+            }
         }
-        #debmes($result);
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 
