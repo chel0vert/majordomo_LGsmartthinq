@@ -65,8 +65,8 @@ class LGAPI
             }
 
             #debmes($headers, 'lgsmarthinq');
-            #debmes($url, 'lgsmarthinq');
-            #debmes($json_request, 'lgsmarthinq');
+            debmes($url, 'lgsmarthinq');
+            debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -78,7 +78,7 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            #print_r($response);
+            print_r($response);
             #echo "\n";
             $result = json_decode($response);
             #debmes($result, 'lgsmarthinq');
@@ -116,7 +116,7 @@ class LGAPI
         $refresh_token = $this->get_refresh_token();
         if ($refresh_token) {
             $access_token = $this->get_new_access_token($refresh_token);
-            $this->set_access_token((string)$access_token);
+            $this->set_access_token($access_token);
         }
         return $this->get_access_token();
     }
@@ -249,7 +249,7 @@ class LGAPI
         $result = Null;
 
         $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
-        #debmes($url, 'lgsmarthinq');
+        debmes($url, 'lgsmarthinq');
 
         $headers = array(
             'Host: ru.lgeapi.com',
@@ -275,9 +275,11 @@ class LGAPI
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
+        debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
         $result = $json->access_token;
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 
