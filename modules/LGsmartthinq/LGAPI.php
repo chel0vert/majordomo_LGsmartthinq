@@ -249,10 +249,10 @@ class LGAPI
         $result = Null;
 
         $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
-        #debmes($url, 'lgsmarthinq');
+        debmes($url, 'lgsmarthinq');
 
         $headers = array(
-            'Host: ru.lgeapi.com',
+            #'Host: ru.lgeapi.com',
             'Sec-Fetch-Mode: cors',
             'Origin: file://',
             'User-Agent: Mozilla/5.0 (Linux; Android 9; COL-L29 Build/HUAWEICOL-L29; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/76.0.3809.111 Mobile Safari/537.36',
@@ -262,7 +262,7 @@ class LGAPI
             'x-lge-oauth-signature: ',
             'X-Requested-With: com.lgeha.nuts',
             'Sec-Fetch-Site: cross-site',
-            'Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+#            'Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
             'Pragma: no-cache',
             'Cache-Control: no-cache'
         );
@@ -277,6 +277,13 @@ class LGAPI
         $response = curl_exec($ch);
         curl_close($ch);
         $json = json_decode($response);
+        if ( $json->error ) {
+            debmes("Can not get access token: \n".
+                   "headers:\n".print_r($headers, 1).
+                    "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n".
+                 "\nresponse:\n". $response,
+            'lgsmarthinq');
+        }
         $result = $json->access_token;
         return $result;
     }
