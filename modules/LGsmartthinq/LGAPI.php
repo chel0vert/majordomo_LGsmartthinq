@@ -241,7 +241,7 @@ class LGAPI
         return $result;
     }
 
-    function get_new_access_token($refresh_token = Null)
+    function    get_new_access_token($refresh_token = Null)
     {
         if (!$refresh_token) {
             return Null;
@@ -290,7 +290,7 @@ class LGAPI
 
     function oauth2_datetime()
     {
-        $result = date($this->DATE_FORMAT, time() - 3 * 60 * 60);
+        $result = date($this->DATE_FORMAT, time() - date("Z"));
         #debmes("Date:".$result,'lgsmarthinq');
         return $result;
     }
