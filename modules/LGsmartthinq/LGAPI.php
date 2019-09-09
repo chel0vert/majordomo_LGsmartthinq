@@ -65,8 +65,8 @@ class LGAPI
             }
 
             #debmes($headers, 'lgsmarthinq');
-            #debmes($url, 'lgsmarthinq');
-            #debmes($json_request, 'lgsmarthinq');
+            debmes($url, 'lgsmarthinq');
+            debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -78,7 +78,7 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            #print_r($response);
+            print_r($response);
             #echo "\n";
             $result = json_decode($response);
             #debmes($result, 'lgsmarthinq');
@@ -116,7 +116,7 @@ class LGAPI
         $refresh_token = $this->get_refresh_token();
         if ($refresh_token) {
             $access_token = $this->get_new_access_token($refresh_token);
-            $this->set_access_token((string)$access_token);
+            $this->set_access_token($access_token);
         }
         return $this->get_access_token();
     }
@@ -275,6 +275,7 @@ class LGAPI
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
+        debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
         if ( $json->error ) {
@@ -285,6 +286,7 @@ class LGAPI
             'lgsmarthinq');
         }
         $result = $json->access_token;
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 
@@ -562,6 +564,7 @@ class LGAPI
             $value = 0;
             $item = $configuration->Value->$key;
             $type = $item->type;
+            $id   = $decoded_value;
             if ($type == 'Enum') {
                 $value = $item->option->$decoded_value;
             } else if ($type == 'Range') {
@@ -576,10 +579,34 @@ class LGAPI
                         $value = $new_item->label;
                     }
                 }
+            } else if ( $type == 'Bit' ) {
+                $bits= array();
+                for ($i=0; $i<8; $i++) {
+                    $bits[$i] = (ord($decoded_value) & (1<<$i))>>$i;
+                }
+                foreach ($item->option as $option) {
+                    $bit_key    = $option->value;
+                    $id         = $bits[(string)$option->startbit];
+                    $new_item   = $configuration->Value->$bit_key;
+                    $value      = $new_item->option->$id;
+                    if ( !$value ) {
+                        $value = $option->default;
+                    }
+                    if ( !$value ) {
+                        $value = $id;
+                    }
+                    $result[$bit_key]          = $value;
+                    #$result[$bit_key."_ID"]    = $id;
+                }
             }
-            $result[$key] = $value;
+            if ( $key ) {
+                $result[$key] = $value;
+            }
+            if ( isset($id) ) {
+                #$result[$key."_ID"] = $id;
+            }
         }
-        #debmes($result);
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 

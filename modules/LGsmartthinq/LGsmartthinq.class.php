@@ -391,8 +391,8 @@ class LGsmartthinq extends module
                             } else {
                                 if ($data->returnData) {
                                     $result = $this->api->decode_data($device, $data->returnData);
-                                    debmes('decoded:', 'lgsmarthinq');
-                                    debmes($result, 'lgsmarthinq');
+                                    #debmes('decoded:', 'lgsmarthinq');
+                                    #debmes($result, 'lgsmarthinq');
                                 }
                             }
                             $try = $try + 1;
@@ -400,8 +400,8 @@ class LGsmartthinq extends module
                         } while ($try < 5);
                         if ($result) {
                             foreach ($result as $key => $value) {
-                                print_r($key);
-                                print_r($value);
+                                #print_r($key);
+                                #print_r($value);
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }
