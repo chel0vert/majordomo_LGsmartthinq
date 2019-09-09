@@ -431,8 +431,8 @@ class LGAPI
             "format" => "B64",
         );
 
-        if ($device->Course) {
-            $send_data = $this->make_start_programm($device, $device->Course);
+        if ($device->Programm) {
+            $send_data = $this->make_start_programm($device, $device->Programm);
             #debmes("Data: ".$send_data,'lgsmarthinq');
             $data['data'] = $send_data;
         }

@@ -276,26 +276,12 @@ class LGsmartthinq extends module
                 $values = $properties[$i];
                 $linked_object = $values['LINKED_OBJECT'];
                 $linked_method = $values['LINKED_METHOD'];
-                #debmes($linked_object, 'lgsmarthinq');
-                #debmes($property, 'lgsmarthinq');
-                #debmes($value, 'lgsmarthinq');
-                $deviceId = gg("$linked_object.deviceId");
-                $deviceType = gg("$linked_object.deviceType");
-                $modelJsonUrl = gg("$linked_object.modelJsonUrl");
-                $langPackModelUri = gg("$linked_object.langPackModelUri");
-                $langPackProductTypeUri = gg("$linked_object.langPackProductTypeUri");
-                $Course = gg("$linked_object.Programm");
-                #debmes($deviceId, 'lgsmarthinq');
-                $device = array(
-                    deviceId => $deviceId,
-                    modelJsonUrl => $modelJsonUrl,
-                    deviceType => $deviceType,
-                    langPackModelUri => $langPackModelUri,
-                    langPackProductTypeUri => $langPackProductTypeUri,
-                    Course => $Course,
-                );
+                $Programm = gg("$linked_object.Programm");
+                $device = $this->getDeviceByID($values['DEVICE_ID']);
+                $device->Programm = $Programm; #FIXME надо придумать как передавать программу стирки
+                #debmes($device, 'lgsmarthinq');
                 if ($property == 'command') {
-                    if ($value == 'Start' && $Course >= 0) {
+                    if ($value == 'Start' && $Programm >= 0) {
                         $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
                     } else if ($value == 'Stop') {
                         $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
@@ -305,7 +291,7 @@ class LGsmartthinq extends module
                         $this->api->start_command((object)$device, 'Control', 'Power', 'Off');
                     }
                 } else if ($property == 'status') {
-                    if ($value == 1 && $Course >= 0) {
+                    if ($value == 1 && $Programm >= 0) {
                         $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
                     } else if ($value == 0) {
                         $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
@@ -317,6 +303,23 @@ class LGsmartthinq extends module
                 }
             }
         }
+    }
+
+    function getDeviceByID($device_id) {
+        $fields = array(
+            deviceId => Null,
+            modelJsonUrl => Null,
+            deviceType => Null,
+            langPackModelUri => Null,
+            langPackProductTypeUri => Null,
+            Course => Null,
+        );
+        $device = new stdClass;
+        foreach ($fields as $property => $value) {
+            $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID = $device_id AND TITLE = '$property'");
+            $device->$property = $values['VALUE'];
+        }
+        return $device;
     }
 
     function set_tokens_to_api()
