@@ -291,7 +291,7 @@ class LGsmartthinq extends module
                         $this->api->start_command($device, 'Control', 'Operation', 'WakeUp');
                     } else if ($value == 'Off') {
                         $this->api->start_command($device, 'Control', 'Power', 'Off');
-                    } else if ($value == 'SetCustomProgramm') {
+                    } else if ($value == 'SetCustomProgramm' || $value == 'StartCustomProgramm') {
                         #debmes($device, 'lgsmarthinq');
                         $device->Course = $Programm; # значение=3 у стиральной машинке F2J7HSR2S = Моя программа
                         $params = array(
@@ -308,7 +308,11 @@ class LGsmartthinq extends module
                             'SmartCourse'       => gg("$linked_object.SetSmartCourse"),#0,
                         );
                         #debmes($params, 'lgsmarthinq');
-                        $this->api->update_course_command($device, $params);
+                        $data = $this->api->update_course_command($device, $params);
+                        if ($value == 'StartCustomProgramm') {
+                            $device->Programm = Null;
+                            $this->api->start_command($device, 'Control', 'Operation', 'Start');
+                        }
                     }
                 } else if ($property == 'status') {
                     if ($value == 1 && $Programm >= 0) {

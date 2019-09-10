@@ -511,7 +511,7 @@ class LGAPI
             'selectedCd' => $device->Course,
         );
 
-        debmes($data, 'lgsmarthinq');
+        #debmes($data, 'lgsmarthinq');
         $response = $this->lgedm_post($url, $data);
         $code = $response->returnCd;
         $result = Null;
@@ -519,7 +519,7 @@ class LGAPI
             $result = $response;
         }
         #debmes($response, 'lgsmarthinq');
-        return $result;
+        return $data;
     }
 
     function gen_custom_course($device, $params)
