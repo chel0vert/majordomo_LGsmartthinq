@@ -65,8 +65,8 @@ class LGAPI
             }
 
             #debmes($headers, 'lgsmarthinq');
-            debmes($url, 'lgsmarthinq');
-            debmes($json_request, 'lgsmarthinq');
+            #debmes($url, 'lgsmarthinq');
+            #debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -78,7 +78,7 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
-            print_r($response);
+            #print_r($response);
             #echo "\n";
             $result = json_decode($response);
             #debmes($result, 'lgsmarthinq');
@@ -249,7 +249,7 @@ class LGAPI
         $result = Null;
 
         $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
-        debmes($url, 'lgsmarthinq');
+        #debmes($url, 'lgsmarthinq');
 
         $headers = array(
             #'Host: ru.lgeapi.com',
@@ -275,7 +275,7 @@ class LGAPI
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
-        debmes($response, 'lgsmarthinq');
+        #debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
         if ( $json->error ) {
@@ -286,7 +286,7 @@ class LGAPI
             'lgsmarthinq');
         }
         $result = $json->access_token;
-        debmes($result, 'lgsmarthinq');
+        #debmes($result, 'lgsmarthinq');
         return $result;
     }
 
@@ -518,7 +518,7 @@ class LGAPI
         if ($code == '0000') {
             $result = $response;
         }
-        debmes($response, 'lgsmarthinq');
+        #debmes($response, 'lgsmarthinq');
         return $result;
     }
 
@@ -534,7 +534,7 @@ class LGAPI
             $DESCRIPTION = $xml->addChild('DESCRIPTION', '');
             $DESCRIPTION->addChild('EN', 'Custom programm');
             $result = $xml->asXML();
-            debmes($result, 'lgsmarthinq');
+            #debmes($result, 'lgsmarthinq');
         } else {
             debmes('can not create custom programm', 'lgsmarthinq');
         }
@@ -606,7 +606,7 @@ class LGAPI
                 #$result[$key."_ID"] = $id;
             }
         }
-        debmes($result, 'lgsmarthinq');
+        #debmes($result, 'lgsmarthinq');
         return $result;
     }
 
@@ -741,6 +741,9 @@ class LGAPI
         $template = $config->ControlWifi->action->OperationStart->data;
         $result = Null;
         foreach ($course_params as $key => $value) {
+            if (!$value) {
+                $value = 0;
+            }
             $template = preg_replace("/\{\{$key\}\}/", "$value", $template);
         }
         $template = preg_replace("/\{\{\w+\}\}/", 0, $template);

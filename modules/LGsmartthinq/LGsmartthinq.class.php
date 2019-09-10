@@ -280,21 +280,42 @@ class LGsmartthinq extends module
                 $device = $this->getDeviceByID($values['DEVICE_ID']);
                 $device->Programm = $Programm; #FIXME надо придумать как передавать программу стирки
                 #debmes($device, 'lgsmarthinq');
+                #debmes("property: $property value: $value", 'lgsmarthinq');
                 if ($property == 'command') {
                     if ($value == 'Start' && $Programm >= 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
+                        $device->Course = $Programm;
+                        $this->api->start_command($device, 'Control', 'Operation', 'Start');
                     } else if ($value == 'Stop') {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
+                        $this->api->start_command($device, 'Control', 'Operation', 'Stop');
                     } else if ($value == 'WakeUp') {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'WakeUp');
+                        $this->api->start_command($device, 'Control', 'Operation', 'WakeUp');
                     } else if ($value == 'Off') {
-                        $this->api->start_command((object)$device, 'Control', 'Power', 'Off');
+                        $this->api->start_command($device, 'Control', 'Power', 'Off');
+                    } else if ($value == 'SetCustomProgramm') {
+                        #debmes($device, 'lgsmarthinq');
+                        $device->Course = $Programm; # значение=3 у стиральной машинке F2J7HSR2S = Моя программа
+                        $params = array(
+                            'Course'            => $Programm,
+                            'Wash'              => gg("$linked_object.SetWash"),#0,
+                            'SpinSpeed'         => gg("$linked_object.SetSpinSpeed"),#1,
+                            'WaterTemp'         => gg("$linked_object.SetWaterTemp"),#1,
+                            'RinseOption'       => gg("$linked_object.SetRinseOption"),#1,
+                            'Reserve_Time_H'    => gg("$linked_object.SetReserve_Time_H"),#0,
+                            'Reserve_Time_M'    => gg("$linked_object.SetReserve_Time_M"),#0,
+                            'LoadItem'          => gg("$linked_object.SetLoadItem"),#0,
+                            'Option1'           => gg("$linked_object.SetOption1"),#3,
+                            'Option2'           => gg("$linked_object.SetOption2"),#0,
+                            'SmartCourse'       => gg("$linked_object.SetSmartCourse"),#0,
+                        );
+                        #debmes($params, 'lgsmarthinq');
+                        $this->api->update_course_command($device, $params);
                     }
                 } else if ($property == 'status') {
                     if ($value == 1 && $Programm >= 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Start');
+                        $device->Course = $Programm;
+                        $this->api->start_command($device, 'Control', 'Operation', 'Start');
                     } else if ($value == 0) {
-                        $this->api->start_command((object)$device, 'Control', 'Operation', 'Stop');
+                        $this->api->start_command($device, 'Control', 'Operation', 'Stop');
                     }
                 }
 
