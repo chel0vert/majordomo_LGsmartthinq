@@ -135,9 +135,10 @@ class LGsmartthinq extends module
      */
     function admin(&$out)
     {
+        global $api_url;
         $this->getConfig();
         $out['API_URL'] = $this->config['API_URL'];
-        if (!$out['API_URL']) {
+        if (!$out['API_URL'] && $api_url) {
             $out['API_URL'] = $api_url;
         }
         $out['API_KEY'] = $this->config['API_KEY'];
@@ -147,7 +148,6 @@ class LGsmartthinq extends module
         $out['API_LANGUAGE'] = $this->config['API_LANGUAGE'];
         $out['API_REFRESH_PERIOD'] = $this->config['API_REFRESH_PERIOD'];
         if ($this->view_mode == 'update_settings') {
-            global $api_url;
             global $api_key;
             $this->config['API_KEY'] = $api_key;
             global $api_access_token;
@@ -311,7 +311,7 @@ class LGsmartthinq extends module
                         $data = $this->api->update_course_command($device, $params);
                         if ($value == 'StartCustomProgramm') {
                             $device->Programm = Null;
-                            $this->api->start_command($device, 'Control', 'Operation', 'Start');
+                            $this->api->start_command($device, 'Control', 'Operation', 'Start', $params);
                         }
                     }
                 } else if ($property == 'status') {

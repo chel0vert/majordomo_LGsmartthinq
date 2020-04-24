@@ -81,6 +81,7 @@ class LGAPI
             #print_r($response);
             #echo "\n";
             $result = json_decode($response);
+            #debmes($url, 'lgsmarthinq');
             #debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
             $code = $result->$data_root->returnCd;
@@ -100,6 +101,7 @@ class LGAPI
                 $this->set_api_error(Null); # unset error
             } else {
                 $this->set_api_error($response);
+                debmes("url: $url", 'lgsmarthinq');
                 debmes("Error response: $response", 'lgsmarthinq');
                 debmes("Do request againg. Try: $try", 'lgsmarthinq');
                 #echo $response;
@@ -412,7 +414,7 @@ class LGAPI
         return $result;
     }
 
-    function send_command($device, $category, $command, $value)
+    function send_command($device, $category, $command, $value, $params)
     {
         # params can be:
         # $category     $command        $value              $data
@@ -434,7 +436,7 @@ class LGAPI
         );
 
         if ($device->Programm) {
-            $send_data = $this->make_start_programm($device, $device->Programm);
+            $send_data = $this->make_start_programm($device, $device->Programm, $params);
             #debmes("Data: ".$send_data,'lgsmarthinq');
             $data['data'] = $send_data;
         }
@@ -453,12 +455,12 @@ class LGAPI
         return $result;
     }
 
-    function start_command($device, $category, $command, $value)
+    function start_command($device, $category, $command, $value, $params)
     {
         $workId = $this->monitor_start($device->deviceId);
         if ($workId) {
             $this->monitor_result($device->deviceId);
-            $result = $this->send_command($device, $category, $command, $value);
+            $result = $this->send_command($device, $category, $command, $value, $params);
             $this->monitor_stop($device->deviceId);
         } else {
             debmes('Can not start monitor', 'lgsmarthinq');
@@ -703,7 +705,7 @@ class LGAPI
         return $this->error;
     }
 
-    function make_start_programm($device, $course)
+    function make_start_programm($device, $course, $params)
     { #course=program
         $config = $this->get_device_configuration($device);
         $template = $config->ControlWifi->action->OperationStart->data;
@@ -716,19 +718,23 @@ class LGAPI
         }
 
         if ($course_config) {
-            $course_name = $course_config->name;
-            #debmes("make_programm: Course name = $course_name", 'lgsmarthinq');
-            $items = $course_config->function;
-            $params = array();
-            foreach ($items as $item) {
-                $name = $item->value;
-                $value = $item->default;
-                $params[$name] = $value;
+            if (isset($params)) {
+                $result = $this->pack_course($device, $params);
+            } else {
+                $course_name = $course_config->name;
+                #debmes("make_programm: Course name = $course_name", 'lgsmarthinq');
+                $items = $course_config->function;
+                $params = array();
+                foreach ($items as $item) {
+                    $name = $item->value;
+                    $value = $item->default;
+                    $params[$name] = $value;
+                }
+                $params['Course'] = $course;
+                $params['Option2'] = 3;
+                $result = $this->pack_course($device, $params);
+                #debmes($result, 'lgsmarthinq');
             }
-            $params['Course'] = $course;
-            $params['Option2'] = 3;
-            $result = $this->pack_course($device, $params);
-            #debmes($result, 'lgsmarthinq');
         } else {
             debmes("make_programm: No course = $course", 'lgsmarthinq');
         }
