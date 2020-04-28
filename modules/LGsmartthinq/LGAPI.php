@@ -61,15 +61,15 @@ class LGAPI
     }
 
 
-    function lgedm_post($url = '', $data = array(), $add_headers = Null)
+    function lgedm_post($url = '', $data = array(), $add_headers = Null, $data_root = Null)
     {
 
         $success = false;
         $try = 1;
         $result = Null;
 
-        $json_request = $this->generate_json_request($data);
-
+        $json_request = $this->generate_json_request($data, $data_root);
+        debmes($json_request);
         do {
 
             $headers = $this->headers($add_headers);
@@ -96,10 +96,15 @@ class LGAPI
             #echo "\n";
             $result = json_decode($response);
             #debmes($url, 'lgsmarthinq');
-            #debmes($result, 'lgsmarthinq');
-            $data_root = $this->DATA_ROOT;
+            debmes($result, 'lgsmarthinq');
+            if (!$data_root) {
+                $data_root = $this->DATA_ROOT;
+            }
             $code = $result->resultCode;
-            echo $code;
+            if (!$code){
+                $code = $result->$data_root->returnCd;
+            }
+            #echo $code;
             if ($code == "0102" || $code == "9003") {
                 if ($code == '9003') {
                     debmes("Session creation failure", 'lgsmarthinq');
@@ -113,6 +118,10 @@ class LGAPI
                 $this->set_api_error($response);
             } else if ($code == '0000') {
                 $success = true;
+                $this->set_api_error(Null); # unset error
+            } else if ($code == '0106') {
+                $success = true;
+                debmes('Is not connected','lgsmarthinq');
                 $this->set_api_error(Null); # unset error
             } else {
                 $this->set_api_error($response);
@@ -231,14 +240,20 @@ class LGAPI
         if ($refresh_token) {
             $access_token = $this->get_new_access_token($refresh_token);
             $this->set_access_token($access_token);
+        } else {
+            debmes('No refresh token', 'lgsmarthinq');
+            echo "No refresh token\n";
         }
         return $this->get_access_token();
     }
 
-    function generate_json_request($data = Null)
+    function generate_json_request($data = Null, $data_root = Null)
     {
+        if (!$data_root) {
+            $data_root = $this->DATA_ROOT;
+        }
         $json = array(
-            $this->DATA_ROOT => $data
+            $data_root => $data
         );
         return json_encode($json);
     }
@@ -252,6 +267,7 @@ class LGAPI
     {
         $response = $this->gateway_info();
         $this->auth_base = $response->empUri;
+        $this->api_devices_root = $response->thinq1Uri;
         $this->api_root = $response->thinq2Uri;
         #$this->oauth_root = $response->empUri;
     }
@@ -369,6 +385,8 @@ class LGAPI
     function get_new_access_token($refresh_token = Null)
     {
         if (!$refresh_token) {
+            debmes('Can not get access token: No refresh token', 'lgsmarthinq');
+            echo "Can not get access token: No refresh token\n";
             return Null;
         }
         $result = Null;
@@ -561,15 +579,15 @@ class LGAPI
     function monitor_start($device_id)
     {
         $this->check_gateway();
-        $url = $this->api_root . "/rti/rtiMon";
+        $url = $this->api_devices_root . "/rti/rtiMon";
         $data = array(
             'cmd' => 'Mon',
             'cmdOpt' => 'Start',
             'deviceId' => $device_id,
             'workId' => $this->gen_uuid(),
         );
-        $result = $this->lgedm_post($url, $data);
-        #debmes($result, 'lgsmarthinq');
+        $result = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
+        debmes($result, 'lgsmarthinq');
         $this->workId[$device_id] = $result->workId;
         return $result->workId;
     }
@@ -586,7 +604,7 @@ class LGAPI
     function monitor_result($device_id)
     {
         $this->check_gateway();
-        $url = $this->api_root . '/rti/rtiResult';
+        $url = $this->api_devices_root . '/rti/rtiResult';
         $data = array(
             'workList' => array(
                 array(
@@ -595,7 +613,7 @@ class LGAPI
                 ),
             ),
         );
-        $response = $this->lgedm_post($url, $data);
+        $response = $this->lgedm_post($url, $data,Null, 'lgedmRoot');
         $code = $response->returnCd;
         $result = Null;
         if ($code == '0000' && $response->workList) {
@@ -607,14 +625,14 @@ class LGAPI
     function monitor_stop($device_id)
     {
         $this->check_gateway();
-        $url = $this->api_root . "/rti/rtiMon";
+        $url = $this->api_devices_root . "/rti/rtiMon";
         $data = array(
             'cmd' => 'Mon',
             'cmdOpt' => 'Stop',
             'deviceId' => $device_id,
             'workId' => $this->get_device_work_id($device_id),
         );
-        $result = $this->lgedm_post($url, $data);
+        $result = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         return $result;
     }
 
@@ -627,7 +645,7 @@ class LGAPI
         # Control       Operation       Stop                ''
         # Control       Set
         $this->check_gateway();
-        $url = $this->api_root . "/rti/rtiControl";
+        $url = $this->api_devices_root . "/rti/rtiControl";
 
         $data = array(
             'cmd' => $category,
@@ -645,7 +663,7 @@ class LGAPI
             $data['data'] = $send_data;
         }
 
-        $response = $this->lgedm_post($url, $data);
+        $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         #print_r($response);
         #echo "\n";
         $code = $response->returnCd;
@@ -675,13 +693,13 @@ class LGAPI
     function delete_permission_command($device)
     {
         $this->check_gateway();
-        $url = $this->api_root . "/rti/delControlPermission";
+        $url = $this->api_devices_root . "/rti/delControlPermission";
 
         $data = array(
             'deviceId' => $device->deviceId,
         );
 
-        $response = $this->lgedm_post($url, $data);
+        $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         $code = $response->returnCd;
         $result = Null;
         if ($code == '0000') {
@@ -709,7 +727,7 @@ class LGAPI
                 );
         */
         $this->check_gateway();
-        $url = $this->api_root . "/washer/courseUpdate";
+        $url = $this->api_devices_root . "/washer/courseUpdate";
 
         $data = array(
             'deviceId' => $device->deviceId,
@@ -718,7 +736,7 @@ class LGAPI
         );
 
         #debmes($data, 'lgsmarthinq');
-        $response = $this->lgedm_post($url, $data);
+        $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         $code = $response->returnCd;
         $result = Null;
         if ($code == '0000') {

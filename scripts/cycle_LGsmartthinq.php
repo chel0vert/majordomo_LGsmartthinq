@@ -20,7 +20,10 @@ $api->set_api_property('refresh_token', $LGsmartthinq_module->config['API_REFRES
 $api->set_api_property('user_number', $LGsmartthinq_module->config['API_USER_NUMBER']);
 
 #parse_redirected_url($redirected_url);
-
+$r = $api->parse_redirected_url($redirected_url);
+print_r($r);
+$r = $api->update_access_token();
+print_r($r);
 $access_token = $api->get_access_token();
 #print_r($LGsmartthinq_module->config['API_USER_NUMBER']);
 if (!$access_token) {

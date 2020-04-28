@@ -426,6 +426,7 @@ class LGsmartthinq extends module
                             foreach ($result as $key => $value) {
                                 #print_r($key);
                                 #print_r($value);
+                                echo $key . " => " . $value."\n";
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }
