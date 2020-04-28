@@ -439,7 +439,6 @@ class LGAPI
         } else {
             $this->devices = Null;
         }
-        print_r($this->devices);
         return $this->devices;
     }
 
