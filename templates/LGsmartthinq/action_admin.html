@@ -23,28 +23,16 @@
  <div class="controls"><input type="text" name="api_key" value="[#API_KEY#]" class="input"></div>
 </div>-->
     <div class="form-group">
-        <label class="control-label"[#if !API_URL#] style="color:red;font-weight:bold"[#endif#]>
+        <label class="control-label"[#if !OAUTH_URL#] style="color:red;font-weight:bold"[#endif#]>
             Authorization URL:
         </label>
-        <a type="text" name="api_url" href="[#API_URL#]" style="font-weight: bold;color: red;">Click me to get tokens!</a>
-    </div>
-    <div class="form-group">
-        <label class="control-label"[#if !API_USER_NAME_URL#] style="color:red;font-weight:bold"[#endif#]>
-            User Name URL:
-        </label>
-        <a type="text" name="api_user_name_url" href="[#API_USER_NAME_URL#]" style="font-weight: bold;color: red;">Click me to get user name!</a>
+        <a type="text" name="api_oauth_url" href="[#OAUTH_URL#]" style="font-weight: bold;color: red;">Click me!</a>
     </div>
 <div class="form-group">
- <label class="control-label"[#if !API_ACCESS_TOKEN#] style="color:red;font-weight:bold"[#endif#]>
-Access Token*:
+ <label class="control-label"[#if !API_REDIRECTED_URL#] style="color:red;font-weight:bold"[#endif#]>
+Redirected url*:
  </label>
- <div class="controls"><input type="text" name="api_access_token" value="[#API_ACCESS_TOKEN#]" class="input"></div>
-</div>
-<div class="form-group">
- <label class="control-label"[#if !API_REFRESH_TOKEN#] style="color:red;font-weight:bold"[#endif#]>
-Refresh Token*:
- </label>
- <div class="controls"><input type="password" name="api_refresh_token" value="[#API_REFRESH_TOKEN#]" class="input"></div>
+ <div class="controls"><input type="text" name="api_redirected_url" value="[#API_REDIRECTED_URL#]" class="input"></div>
 </div>
     <div class="form-group">
         <label class="control-label"[#if !API_COUNTRY#] style="color:red;font-weight:bold"[#endif#]>
@@ -57,12 +45,6 @@ Refresh Token*:
             Language (Example: ru-RU)*:
         </label>
         <div class="controls"><input type="text" name="api_language" value="[#API_LANGUAGE#]" class="input"></div>
-    </div>
-    <div class="form-group">
-        <label class="control-label"[#if !API_USER_NUMBER#] style="color:red;font-weight:bold"[#endif#]>
-            Use Number*:
-        </label>
-        <div class="controls"><input type="text" name="api_user_number" value="[#API_USER_NUMBER#]" class="input"></div>
     </div>
     <div class="form-group">
         <label class="control-label">
@@ -78,8 +60,8 @@ Refresh Token*:
             1. Enter yours country and language first<br/>
             2. Click button "Update"<br/>
             3. Go to the link "Authorization URL"<br/>
-            4. Enter your's password and look at the url after redirect<br/>
-            5. Enter access and refresh tokens into fields<br/>
+            4. Enter redirected url<br/>
+            5. Click button "Update"<br/>
         </label>
     </div>
 <div class="form-actions">

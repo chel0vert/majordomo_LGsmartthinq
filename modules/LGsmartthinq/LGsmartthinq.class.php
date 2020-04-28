@@ -136,45 +136,38 @@ class LGsmartthinq extends module
     function admin(&$out)
     {
         global $api_url;
-        global $api_user_number;
+        global $api_redirected_url;
         $this->getConfig();
-        $this->api->check_gateway();
-        $out['API_URL'] = $this->api->oauth_url();
-        $out['API_USER_NAME_URL'] = $this->api->user_name_url();
-        $out['API_USER_NUMBER'] = $this->config['API_USER_NUMBER'];
-        if (!$out['API_URL'] && $api_url) {
-            $out['API_URL'] = $api_url;
-        }
-        $out['API_KEY'] = $this->config['API_KEY'];
-        $out['API_ACCESS_TOKEN'] = $this->config['API_ACCESS_TOKEN'];
-        $out['API_REFRESH_TOKEN'] = $this->config['API_REFRESH_TOKEN'];
         $out['API_COUNTRY'] = $this->config['API_COUNTRY'];
         $out['API_LANGUAGE'] = $this->config['API_LANGUAGE'];
         $out['API_REFRESH_PERIOD'] = $this->config['API_REFRESH_PERIOD'];
+        $out['API_REDIRECTED_URL'] = $this->config['API_REDIRECTED_URL'];
+        global $api_country;
+        global $api_language;
+        $this->api->set_api_property("country", $this->config['API_COUNTRY']);
+        $this->api->set_api_property("language", $this->config['API_LANGUAGE']);
+        $this->api->check_gateway();
+        $out['OAUTH_URL'] = $this->api->oauth_url();
         if ($this->view_mode == 'update_settings') {
             global $api_key;
-            $this->config['API_KEY'] = $api_key;
             global $api_access_token;
-            $this->config['API_ACCESS_TOKEN'] = $api_access_token;
             global $api_refresh_token;
-            if ($api_refresh_token) {
-                $this->api->set_api_property("refresh_token", $api_refresh_token);
-                $this->config['API_REFRESH_TOKEN'] = $api_refresh_token;
-            }
-            global $api_country;
             $this->config['API_COUNTRY'] = $api_country;
-            global $api_language;
             $this->config['API_LANGUAGE'] = $api_language;
             global $api_refresh_period;
             $this->config['API_REFRESH_PERIOD'] = $api_refresh_period;
-            $this->api->set_api_property("access_token", $api_access_token);
             $this->api->set_api_property("country", $api_country);
             $this->api->set_api_property("language", $api_language);
-            $this->api->set_api_property("user_number", $api_user_number);
             $this->api->check_gateway();
             $api_url = $this->api->oauth_url();
             $this->config['API_URL'] = $api_url;
-            $this->config['API_USER_NUMBER'] = $api_user_number;
+            $this->config['API_REDIRECTED_URL'] = $api_redirected_url;
+            if ($api_redirected_url) {
+                $this->api->parse_redirected_url($api_redirected_url);
+                $this->config['API_ACCESS_TOKEN'] = $this->api->get_access_token();
+                $this->config['API_REFRESH_TOKEN'] = $this->api->get_refresh_token();
+                $this->config['API_USER_NUMBER'] = $this->api->get_user_number();
+            }
             $this->saveConfig();
             $this->redirect("?");
         }
@@ -357,12 +350,12 @@ class LGsmartthinq extends module
     {
         $this->getConfig();
         $access_token = $this->config['API_ACCESS_TOKEN'];
-        $session_id = $this->config['API_SESSION_ID'];
+        $user_number = $this->config['API_USER_NUMBER'];
         if (isset($access_token)) {
             $this->api->set_access_token($access_token);
         }
-        if (isset($session_id)) {
-            $this->api->set_session_id($session_id);
+        if (isset($user_number)) {
+            $this->api->set_api_property('user_number', $user_number);
         }
         $country = $this->config['API_COUNTRY'];
         $language = $this->config['API_LANGUAGE'];

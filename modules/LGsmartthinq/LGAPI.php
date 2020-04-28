@@ -4,6 +4,9 @@ class LGAPI
 {
 
     private $access_token;
+    private $redirected_url;
+    private $oauth2_backend_url;
+    private $oauth_code;
     private $user_number;
     private $refresh_token;
     private $session_id;
@@ -30,15 +33,33 @@ class LGAPI
     private $devices = array();
     private $workId = array();
     private $error = Null;
+    private $OAUTH_REDIRECT_URI  = 'https://kr.m.lgaccount.com/login/iabClose';
 
-    function __construct($country, $language, $access_token, $refresh_token, $user_number)
+    function __construct($country, $language, $redirected_url=Null)
     {
-        #$this->country = $country;        #[require]
-        #$this->language = $language;       #[require]
-        $this->user_number = $user_number; #[optional]
-        $this->access_token = $access_token;   #[optional]
-        $this->refresh_token = $refresh_token;  #[optional]
+        $this->country = $country;        #[require]
+        $this->language = $language;       #[require]
+        if ($redirected_url) {
+            $this->redirected_url = $redirected_url; #[require]
+            $this->parse_redirected_url($redirected_url);
+        }
     }
+
+    function parse_redirected_url($redirected_url){
+        $query = parse_url($redirected_url, PHP_URL_QUERY);
+        $key_value = explode ("&", $query);
+        $result = array();
+        foreach ($key_value as $item) {
+            $array = explode("=", $item);
+            $result[$array[0]] = $array[1];
+        }
+        $this->set_api_property('user_number', $result['user_number']);
+        $this->set_api_property('oauth_code', $result['code']);
+        $this->set_api_property('oauth2_backend_url', urldecode($result['oauth2_backend_url']));
+        $this->login();
+        return $result;
+    }
+
 
     function lgedm_post($url = '', $data = array(), $add_headers = Null)
     {
@@ -122,7 +143,6 @@ class LGAPI
             #debmes($headers, 'lgsmarthinq');
             #debmes($url, 'lgsmarthinq');
             #debmes($json_request, 'lgsmarthinq');
-            #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -238,7 +258,7 @@ class LGAPI
 
     function check_gateway()
     {
-        if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth_root)) {
+        if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth2_backend_url)) {
             #debmes("Set GateWays", 'lgsmarthinq');
             $this->set_gateway();
         }
@@ -246,15 +266,15 @@ class LGAPI
 
     function oauth_url()
     {
-        $url = $this->auth_base . '/login/sign_in';
+        $url = $this->auth_base . '/spx/login/signIn';
         $params = array(
             'country' => $this->country,
             'language' => $this->language,
-            'svcCode' => $this->SVC_CODE,
-            'authSvr' => 'oauth2',
+            'svc_list' => $this->SVC_CODE,
             'client_id' => $this->CLIENT_ID,
             'division' => 'ha',
-            'grant_type' => 'password',
+            'state' => '56f9761ecb1943aa9217e455d1fb06a9',
+            'show_thirdparty_login' => 'GGL,AMZ,FBK',
             'redirect_uri' => 'https://kr.m.lgaccount.com/login/iabClose'
         );
         return "$url?" . http_build_query($params);
@@ -313,42 +333,37 @@ class LGAPI
     {
         $this->check_gateway();
 
-        $url = $this->api_root . "/member/login";
+        $url = $this->oauth2_backend_url . "oauth/1.0/oauth2/token";
 
         $headers = array(
-            'x-thinq-application-key: ' . $this->APP_KEY,
-            'x-thinq-security-key: ' . $this->SECURITY_KEY,
+            'x-lge-appkey: '. $this->CLIENT_ID,
+            'x-lge-oauth-signature: ',
+            'x-lge-oauth-date: ' . $this->oauth2_datetime(),
             'Accept: application/json',
-            'Content-Type:application/json',
         );
 
         $data = array(
-            'countryCode' => $this->country,
-            'langCode' => $this->language,
-            'loginType' => 'EMP',
-            'token' => $this->access_token,
+            'code' => $this->oauth_code,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $this->OAUTH_REDIRECT_URI,
         );
-
         $json_request = $this->generate_json_request($data);
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $json_request);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
         curl_close($ch);
-
-        $data_root = $this->DATA_ROOT;
         $json = json_decode($response);
-        $result = $json->$data_root;
-        $this->set_session_id((string)$result->jsessionId);
-        #debmes((string)$result->jsessionId, 'lgsmarthinq');
-        $this->devices = $this->get_items($result);
-        return $result;
+        $this->set_api_property('access_token', $json->access_token);
+        $this->set_api_property('refresh_token', $json->refresh_token);
+        #$this->devices = $this->get_items($result);
+        return $json;
     }
 
     function get_new_access_token($refresh_token = Null)
@@ -358,7 +373,7 @@ class LGAPI
         }
         $result = Null;
 
-        $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
+        $url = $this->oauth2_backend_url . "/oauth/1.0/oauth2/token";
         debmes($url, 'lgsmarthinq');
 
         $headers = array(
@@ -404,9 +419,7 @@ class LGAPI
 
     function get_items($response)
     {
-        $result = array();
-        array_push($result, $response->item);
-        return $result;
+        return $response->item;
     }
 
     function get_devices()
@@ -419,22 +432,23 @@ class LGAPI
         $this->check_gateway();
         $url = $this->api_root . "/service/application/dashboard";
         $data = array();
-        if (!isset($this->user_number)) {
-            $this->get_user_number();
-        }
-        debmes($url);
+
         $result = $this->lgedm_get($url, $data);
-        debmes($result);
         if (count($result) > 0) {
             $this->devices = $this->get_items($result);
         } else {
             $this->devices = Null;
         }
+        print_r($this->devices);
         return $this->devices;
     }
 
     function get_user_number(){
-        $url = $this->oauth_root . "/users/profile";
+        return $this->user_number;
+    }
+/*
+    function get_user_number(){
+        $url = $this->oauth2_backend_url . "/users/profile";
         debmes($url, 'lgsmarthinq');
 
         $access_token = $this->get_access_token();
@@ -503,7 +517,7 @@ class LGAPI
         debmes($result, 'lgsmarthinq');
         debmes($result);
     }
-
+*/
     function signature($url, $date){
         $message = $url."\n".$date;
         $secret = $this->OAUTH_SECRET_KEY;
