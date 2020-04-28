@@ -28,6 +28,12 @@
         </label>
         <a type="text" name="api_url" href="[#API_URL#]" style="font-weight: bold;color: red;">Click me to get tokens!</a>
     </div>
+    <div class="form-group">
+        <label class="control-label"[#if !API_USER_NAME_URL#] style="color:red;font-weight:bold"[#endif#]>
+            User Name URL:
+        </label>
+        <a type="text" name="api_user_name_url" href="[#API_USER_NAME_URL#]" style="font-weight: bold;color: red;">Click me to get user name!</a>
+    </div>
 <div class="form-group">
  <label class="control-label"[#if !API_ACCESS_TOKEN#] style="color:red;font-weight:bold"[#endif#]>
 Access Token*:
@@ -51,6 +57,12 @@ Refresh Token*:
             Language (Example: ru-RU)*:
         </label>
         <div class="controls"><input type="text" name="api_language" value="[#API_LANGUAGE#]" class="input"></div>
+    </div>
+    <div class="form-group">
+        <label class="control-label"[#if !API_USER_NUMBER#] style="color:red;font-weight:bold"[#endif#]>
+            Use Number*:
+        </label>
+        <div class="controls"><input type="text" name="api_user_number" value="[#API_USER_NUMBER#]" class="input"></div>
     </div>
     <div class="form-group">
         <label class="control-label">

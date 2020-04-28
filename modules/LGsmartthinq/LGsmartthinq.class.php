@@ -136,8 +136,12 @@ class LGsmartthinq extends module
     function admin(&$out)
     {
         global $api_url;
+        global $api_user_number;
         $this->getConfig();
-        $out['API_URL'] = $this->config['API_URL'];
+        $this->api->check_gateway();
+        $out['API_URL'] = $this->api->oauth_url();
+        $out['API_USER_NAME_URL'] = $this->api->user_name_url();
+        $out['API_USER_NUMBER'] = $this->config['API_USER_NUMBER'];
         if (!$out['API_URL'] && $api_url) {
             $out['API_URL'] = $api_url;
         }
@@ -166,9 +170,11 @@ class LGsmartthinq extends module
             $this->api->set_api_property("access_token", $api_access_token);
             $this->api->set_api_property("country", $api_country);
             $this->api->set_api_property("language", $api_language);
+            $this->api->set_api_property("user_number", $api_user_number);
             $this->api->check_gateway();
             $api_url = $this->api->oauth_url();
             $this->config['API_URL'] = $api_url;
+            $this->config['API_USER_NUMBER'] = $api_user_number;
             $this->saveConfig();
             $this->redirect("?");
         }

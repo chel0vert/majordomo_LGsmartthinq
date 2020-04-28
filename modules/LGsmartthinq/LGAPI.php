@@ -4,32 +4,40 @@ class LGAPI
 {
 
     private $access_token;
+    private $user_number;
     private $refresh_token;
     private $session_id;
 
-    private $GATEWAY_URL = 'https://kic.lgthinq.com:46030/api/common/gatewayUriList';
-    private $APP_KEY = 'wideq';
+    private $GATEWAY_URL = 'https://route.lgthinq.com:46030/v1/service/application/gateway-uri';
+    private $API_KEY = 'VGhpblEyLjAgU0VSVklDRQ==';
+    private $MESSAGE_ID = 'MJD';
     private $SECURITY_KEY = 'nuts_securitykey';
-    private $DATA_ROOT = 'lgedmRoot';
+    private $DATA_ROOT = 'result';
     private $SVC_CODE = 'SVC202';
+    private $SVC_PHASE = 'OP';
+    #private $CLIENT_ID = '65260af7e8e6547b51fdccf930097c51eb9885a508d3fddfa9ee6cdec22ae1bd';
     private $CLIENT_ID = 'LGAO221A02';
     private $DATE_FORMAT = 'D, j M Y H:i:s +0000';
+    private $APP_LEVEL = 'PRD';
+    private $APP_OS = 'ANDROID';
+    private $APP_TYPE = 'NUTS';
+    private $APP_VER = '3.0.2100';
     private $auth_base = Null;
     private $api_root = Null;
-    private $oauth_root = Null;
-    private $country = Null;
-    private $language = Null;
+    private $oauth_root = 'https://ru.lgeapi.com'; # теоретически может отличаться в зависимости от региона
+    private $country = 'RU';
+    private $language = 'ru-RU';
     private $devices = array();
     private $workId = array();
     private $error = Null;
 
-    function __construct($country, $language, $access_token, $refresh_token, $session_id)
+    function __construct($country, $language, $access_token, $refresh_token, $user_number)
     {
-        $this->country = $country;        #[require]
-        $this->language = $language;       #[require]
+        #$this->country = $country;        #[require]
+        #$this->language = $language;       #[require]
+        $this->user_number = $user_number; #[optional]
         $this->access_token = $access_token;   #[optional]
         $this->refresh_token = $refresh_token;  #[optional]
-        $this->session_id = $session_id;     #[optional]
     }
 
     function lgedm_post($url = '', $data = array(), $add_headers = Null)
@@ -43,26 +51,7 @@ class LGAPI
 
         do {
 
-            $headers = array(
-                'x-thinq-application-key: ' . $this->APP_KEY,
-                'x-thinq-security-key: ' . $this->SECURITY_KEY,
-                'Accept: application/json',
-                'Content-Type:application/json',
-            );
-
-            if (isset($add_headers)) {
-                array_push($headers, $add_headers);
-            }
-
-            if (isset($this->access_token)) {
-                #debmes($this->access_token, 'lgsmarthinq');
-                array_push($headers, 'x-thinq-token: ' . $this->access_token);
-            }
-
-            if (isset($this->session_id)) {
-                #debmes($this->session_id, 'lgsmarthinq');
-                array_push($headers, 'x-thinq-jsessionId: ' . $this->session_id);
-            }
+            $headers = $this->headers($add_headers);
 
             #debmes($headers, 'lgsmarthinq');
             #debmes($url, 'lgsmarthinq');
@@ -78,13 +67,18 @@ class LGAPI
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             curl_close($ch);
+            #print_r($headers);
+            #echo "\n";
+            #print_r($url);
+            #echo "\n";
             #print_r($response);
             #echo "\n";
             $result = json_decode($response);
             #debmes($url, 'lgsmarthinq');
             #debmes($result, 'lgsmarthinq');
             $data_root = $this->DATA_ROOT;
-            $code = $result->$data_root->returnCd;
+            $code = $result->resultCode;
+            echo $code;
             if ($code == "0102" || $code == "9003") {
                 if ($code == '9003') {
                     debmes("Session creation failure", 'lgsmarthinq');
@@ -112,6 +106,104 @@ class LGAPI
         return $result->$data_root;
     }
 
+    function lgedm_get($url = '', $data = array(), $add_headers = Null)
+    {
+
+        $success = false;
+        $try = 1;
+        $result = Null;
+
+        $json_request = $this->generate_json_request($data);
+
+        do {
+
+            $headers = $this->headers($add_headers);
+
+            #debmes($headers, 'lgsmarthinq');
+            #debmes($url, 'lgsmarthinq');
+            #debmes($json_request, 'lgsmarthinq');
+            #echo "\n";
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $json_request);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            #print_r($headers);
+            #echo "\n";
+            #print_r($url);
+            #echo "\n";
+            #print_r($response);
+            #echo "\n";
+            $result = json_decode($response);
+            #debmes($url, 'lgsmarthinq');
+            #debmes($result, 'lgsmarthinq');
+            $data_root = $this->DATA_ROOT;
+            $code = $result->resultCode;
+            if ($code == "0102" || $code == "9003") {
+                if ($code == '9003') {
+                    debmes("Session creation failure", 'lgsmarthinq');
+                } else {
+                    debmes($json_request, 'lgsmarthinq');
+                    debmes($response, 'lgsmarthinq');
+                    debmes($result->$data_root->returnMsg, 'lgsmarthinq');
+                }
+                $this->update_access_token();
+                $this->login();
+                $this->set_api_error($response);
+            } else if ($code == '0000') {
+                $success = true;
+                $this->set_api_error(Null); # unset error
+            } else {
+                $this->set_api_error($response);
+                debmes("url: $url", 'lgsmarthinq');
+                debmes("Error response: $response", 'lgsmarthinq');
+                debmes("Do request againg. Try: $try", 'lgsmarthinq');
+                #echo $response;
+                #echo "\n";
+            }
+            $try = $try + 1;
+        } while (!$success && $try <= 10);
+        return $result->$data_root;
+    }
+
+    function headers($headers)
+    {
+        $result = array(
+            'Accept:application/json',
+            'Content-type: application/json;charset=UTF-8',
+            'x-api-key:' . $this->API_KEY,
+            'x-client-id:' . $this->CLIENT_ID,
+            'x-country-code:' . $this->country,
+            'x-language-code:' . $this->language,
+            'x-message-id:' . $this->MESSAGE_ID,
+            'x-service-code:' . $this->SVC_CODE,
+            'x-service-phase:' . $this->SVC_PHASE,
+            'x-thinq-app-level:' . $this->APP_LEVEL,
+            'x-thinq-app-os:' . $this->APP_OS,
+            'x-thinq-app-type:' . $this->APP_TYPE,
+            'x-thinq-app-ver:' . $this->APP_VER,
+            'x-thinq-security-key:' . $this->SECURITY_KEY,
+        );
+        if (isset($headers)) {
+            array_push($result, $headers);
+        }
+        if (isset($this->access_token)) {
+            #debmes($this->access_token, 'lgsmarthinq');
+            array_push($result, 'x-emp-token: ' . $this->access_token);
+        }
+
+        if (isset($this->user_number)) {
+            #debmes($this->session_id, 'lgsmarthinq');
+            array_push($result, 'x-user-no: ' . $this->user_number);
+        }
+        return $result;
+    }
+
     function update_access_token()
     {
         $this->check_gateway();
@@ -133,21 +225,20 @@ class LGAPI
 
     function gateway_info()
     {
-        return $this->lgedm_post($this->GATEWAY_URL, array('countryCode' => $this->country, 'langCode' => $this->language));
+        return $this->lgedm_get($this->GATEWAY_URL, array('x-country-code' => $this->country, 'x-language-code' => $this->language));
     }
 
     function set_gateway()
     {
         $response = $this->gateway_info();
         $this->auth_base = $response->empUri;
-        $this->api_root = $response->thinqUri;
-        $this->oauth_root = $response->oauthUri;
-        $this->auth_base = $response->empUri;
+        $this->api_root = $response->thinq2Uri;
+        #$this->oauth_root = $response->empUri;
     }
 
     function check_gateway()
     {
-        if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth_root) || !isset($this->auth_base)) {
+        if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth_root)) {
             #debmes("Set GateWays", 'lgsmarthinq');
             $this->set_gateway();
         }
@@ -164,6 +255,23 @@ class LGAPI
             'client_id' => $this->CLIENT_ID,
             'division' => 'ha',
             'grant_type' => 'password',
+            'redirect_uri' => 'https://kr.m.lgaccount.com/login/iabClose'
+        );
+        return "$url?" . http_build_query($params);
+    }
+
+    function user_name_url()
+    {
+        $url = $this->auth_base . '/spx/login/signIn';
+        $params = array(
+            'country' => $this->country,
+            'language' => $this->language,
+            'svc_list' => $this->SVC_CODE,
+            'client_id' => $this->CLIENT_ID,
+            'division' => 'ha',
+            'state' => '56f9761ecb1943aa9217e455d1fb06a9',
+            'show_thirdparty_login' => 'GGL,AMZ,FBK',
+            'redirect_uri' => 'https://kr.m.lgaccount.com/login/iabClose'
         );
         return "$url?" . http_build_query($params);
     }
@@ -243,7 +351,7 @@ class LGAPI
         return $result;
     }
 
-    function    get_new_access_token($refresh_token = Null)
+    function get_new_access_token($refresh_token = Null)
     {
         if (!$refresh_token) {
             return Null;
@@ -251,20 +359,14 @@ class LGAPI
         $result = Null;
 
         $url = $this->oauth_root . "/oauth/1.0/oauth2/token";
-        #debmes($url, 'lgsmarthinq');
+        debmes($url, 'lgsmarthinq');
 
         $headers = array(
-            #'Host: ru.lgeapi.com',
-            'Sec-Fetch-Mode: cors',
-            'Origin: file://',
-            'User-Agent: Mozilla/5.0 (Linux; Android 9; COL-L29 Build/HUAWEICOL-L29; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/76.0.3809.111 Mobile Safari/537.36',
             'Accept: application/json',
             'x-lge-oauth-date: ' . $this->oauth2_datetime(),
-            "x-lge-appkey: " . $this->CLIENT_ID,
+            "x-lge-appkey: LGAO221A02",
             'x-lge-oauth-signature: ',
             'X-Requested-With: com.lgeha.nuts',
-            'Sec-Fetch-Site: cross-site',
-#            'Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
             'Pragma: no-cache',
             'Cache-Control: no-cache'
         );
@@ -280,15 +382,16 @@ class LGAPI
         #debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
-        if ( $json->error ) {
-            debmes("Can not get access token: \n".
-                   "headers:\n".print_r($headers, 1).
-                    "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n".
-                 "\nresponse:\n". $response,
-            'lgsmarthinq');
+        #debmes($json, 'lgsmarthinq');
+        if ($json->error) {
+            debmes("Can not get access token: \n" .
+                "headers:\n" . print_r($headers, 1) .
+                "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n" .
+                "\nresponse:\n" . $response,
+                'lgsmarthinq');
         }
         $result = $json->access_token;
-        #debmes($result, 'lgsmarthinq');
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 
@@ -314,9 +417,14 @@ class LGAPI
     function set_devices()
     {
         $this->check_gateway();
-        $url = $this->api_root . "/device/deviceList";
+        $url = $this->api_root . "/service/application/dashboard";
         $data = array();
-        $result = $this->lgedm_post($url, $data);
+        if (!isset($this->user_number)) {
+            $this->get_user_number();
+        }
+        debmes($url);
+        $result = $this->lgedm_get($url, $data);
+        debmes($result);
         if (count($result) > 0) {
             $this->devices = $this->get_items($result);
         } else {
@@ -324,6 +432,89 @@ class LGAPI
         }
         return $this->devices;
     }
+
+    function get_user_number(){
+        $url = $this->oauth_root . "/users/profile";
+        debmes($url, 'lgsmarthinq');
+
+        $access_token = $this->get_access_token();
+        $headers = array(
+            #'Authorization: Bearer '.$access_token,
+            'Authorization: Bearer a5ba1fb9530b897c86d4b77704622ba0a6f724c0fedab798ce85c51a715818516293aaf9eb677bd631eed4b877aa388b',
+            'Accept: application/json',
+            #'x-lge-oauth-date: ' . $this->oauth2_datetime(),
+            'x-lge-oauth-signature: ',
+            'x-lge-oauth-date: ',
+            'X-Requested-With: com.lgeha.nuts',
+            "x-lge-appkey: LGAO221A02",
+            'X-Device-Type: M01',
+            'X-Device-Platform:	ADR',
+            'X-Application-Key: '.$this->OAUTH_CLIENT_KEY,
+            'lgemp-x-app-key: '.$this->OAUTH_CLIENT_KEY,
+            'X-Lge-Svccode: '. $this->SVC_CODE,
+            'Pragma: no-cache',
+            'Cache-Control: no-cache',
+            'Content-Type: application/x-www-form-urlencoded',
+        );
+        #$date = 'Tue, 28 Apr 2020 08:35:47 +0000';#$this->oauth2_datetime();
+        $date = $this->oauth2_datetime();
+        $signature = $this->signature($url, $date);
+        $headers = array(
+            #'x-lge-oauth-signature: +gxRvBEtIGaABnrZ32xkE11saWk=',
+            #'x-lge-oauth-date: Tue, 28 Apr 2020 08:35:47 +0000',
+            'x-lge-oauth-signature: '.$signature,
+            'x-lge-oauth-date: '. $date,
+            'Authorization: Bearer a5ba1fb9530b897c86d4b77704622ba0a6f724c0fedab798ce85c51a715818516293aaf9eb677bd631eed4b877aa388b',
+            'X-Device-Type: M01',
+            'X-Device-Platform: ADR',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Accept: application/json',
+            'X-Lge-Svccode: SVC202',
+            'X-Application-Key: LGAO221A02',
+            'lgemp-x-app-key: LGAO221A02',
+            'User-Agent: Dalvik/2.1.0 (Linux; U; Android 5.1; M3s Build/LMY47I)',
+            'Host: ru.lgeapi.com',
+            'Connection: Keep-Alive',
+            'Accept-Encoding: gzip',
+            'Pragma: no-cache',
+            'Cache-Control: no-cache',
+        );
+        debmes($headers, 'lgsmarthinq');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        #curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        #curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $response = curl_exec($ch);
+        #debmes($response, 'lgsmarthinq');
+        curl_close($ch);
+        $json = json_decode($response);
+        debmes($json, 'lgsmarthinq');
+        if ($json->error) {
+            debmes("Can not get access token: \n" .
+                "headers:\n" . print_r($headers, 1) .
+                "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n" .
+                "\nresponse:\n" . $response,
+                'lgsmarthinq');
+        }
+        $result = $json->access_token;
+        debmes($result, 'lgsmarthinq');
+        debmes($result);
+    }
+
+    function signature($url, $date){
+        $message = $url."\n".$date;
+        $secret = $this->OAUTH_SECRET_KEY;
+        $secret_bytes = utf8_encode($secret);
+        $message_bytes = utf8_encode($message);
+        $result = hash_hmac('sha1', $message_bytes, $secret_bytes, true);
+        $result = base64_encode($result);
+        debmes($result);
+        return $result;
+    }
+
 
     function set_api_property($property, $value)
     {
@@ -566,7 +757,7 @@ class LGAPI
             $value = 0;
             $item = $configuration->Value->$key;
             $type = $item->type;
-            $id   = $decoded_value;
+            $id = $decoded_value;
             if ($type == 'Enum') {
                 $value = $item->option->$decoded_value;
             } else if ($type == 'Range') {
@@ -581,30 +772,30 @@ class LGAPI
                         $value = $new_item->label;
                     }
                 }
-            } else if ( $type == 'Bit' ) {
-                $bits= array();
-                for ($i=0; $i<8; $i++) {
-                    $bits[$i] = (ord($decoded_value) & (1<<$i))>>$i;
+            } else if ($type == 'Bit') {
+                $bits = array();
+                for ($i = 0; $i < 8; $i++) {
+                    $bits[$i] = (ord($decoded_value) & (1 << $i)) >> $i;
                 }
                 foreach ($item->option as $option) {
-                    $bit_key    = $option->value;
-                    $id         = $bits[(string)$option->startbit];
-                    $new_item   = $configuration->Value->$bit_key;
-                    $value      = $new_item->option->$id;
-                    if ( !$value ) {
+                    $bit_key = $option->value;
+                    $id = $bits[(string)$option->startbit];
+                    $new_item = $configuration->Value->$bit_key;
+                    $value = $new_item->option->$id;
+                    if (!$value) {
                         $value = $option->default;
                     }
-                    if ( !$value ) {
+                    if (!$value) {
                         $value = $id;
                     }
-                    $result[$bit_key]          = $value;
+                    $result[$bit_key] = $value;
                     #$result[$bit_key."_ID"]    = $id;
                 }
             }
-            if ( $key ) {
+            if ($key) {
                 $result[$key] = $value;
             }
-            if ( isset($id) ) {
+            if (isset($id)) {
                 #$result[$key."_ID"] = $id;
             }
         }

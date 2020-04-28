@@ -13,7 +13,7 @@ include_once(DIR_MODULES . 'LGsmartthinq/LGsmartthinq.class.php');
 include_once(DIR_MODULES . 'LGsmartthinq/LGAPI.php');
 $LGsmartthinq_module = new LGsmartthinq();
 $module_config = $LGsmartthinq_module->getConfig();
-$api = new LGAPI($module_config['API_COUNTRY'], $module_config['API_LANGUAGE'], $module_config['API_ACCESS_TOKEN'], $module_config['API_REFRESH_TOKEN'], Null);
+$api = new LGAPI($module_config['API_COUNTRY'], $module_config['API_LANGUAGE'], $module_config['API_ACCESS_TOKEN'], $module_config['API_REFRESH_TOKEN'], $module_config['API_USER_NUMBER']);
 $refresh_token = $LGsmartthinq_module->config['API_REFRESH_TOKEN'];
 if ($refresh_token) {
     $api->set_refresh_token($refresh_token);
