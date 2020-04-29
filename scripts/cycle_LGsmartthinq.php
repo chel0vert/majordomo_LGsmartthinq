@@ -18,16 +18,19 @@ $api = new LGAPI($module_config['API_COUNTRY'], $module_config['API_LANGUAGE']);
 $api->set_api_property('access_token', $LGsmartthinq_module->config['API_ACCESS_TOKEN']);
 $api->set_api_property('refresh_token', $LGsmartthinq_module->config['API_REFRESH_TOKEN']);
 $api->set_api_property('user_number', $LGsmartthinq_module->config['API_USER_NUMBER']);
+$api->set_api_property('redirected_url', $LGsmartthinq_module->config['API_REDIRECTED_URL']);
 
-#parse_redirected_url($redirected_url);
-$r = $api->parse_redirected_url($redirected_url);
-print_r($r);
-$r = $api->update_access_token();
-print_r($r);
 $access_token = $api->get_access_token();
-#print_r($LGsmartthinq_module->config['API_USER_NUMBER']);
-if (!$access_token) {
-    echo "No access token\n";
+$refresh_token = $api->get_refresh_token();
+#print_r($api);
+if (!$access_token || !$refresh_token) {
+    $api->parse_redirected_url($redirected_url);
+}
+
+$access_token = $api->get_access_token();
+$refresh_token = $api->get_refresh_token();
+if (!$access_token || !$refresh_token) {
+    echo "access token: $access_token ; refresh_token: $refresh_token\n";
     debmes("No access token for LG smartthinq", 'lgsmarthinq');
     exit;
 }

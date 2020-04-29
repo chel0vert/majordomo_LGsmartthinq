@@ -376,9 +376,14 @@ class LGAPI
         $response = curl_exec($ch);
         curl_close($ch);
         $json = json_decode($response);
-        $this->set_api_property('access_token', $json->access_token);
-        $this->set_api_property('refresh_token', $json->refresh_token);
-        #$this->devices = $this->get_items($result);
+        if (!$json->access_token || !$json->refresh_token) {
+            $message = "Can not get new access token. Please add new redirected url\n$response";
+            debmes($message, 'lgsmarthinq');
+            echo "$message\n";
+        } else {
+            $this->set_api_property('access_token', $json->access_token);
+            $this->set_api_property('refresh_token', $json->refresh_token);
+        }
         return $json;
     }
 
