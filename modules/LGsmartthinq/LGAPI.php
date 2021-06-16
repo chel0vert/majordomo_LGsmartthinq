@@ -516,7 +516,7 @@ class LGAPI
         $data = array();
 
         $result = $this->lgedm_get($url, $data);
-        if (count($result) > 0) {
+        if ($result && count($result->item) > 0) {
             $this->devices = $this->get_items($result);
         } else {
             $this->devices = Null;
