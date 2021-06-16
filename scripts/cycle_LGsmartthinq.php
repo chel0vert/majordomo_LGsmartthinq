@@ -22,9 +22,13 @@ $api->set_api_property('redirected_url', $LGsmartthinq_module->config['API_REDIR
 
 $access_token = $api->get_access_token();
 $refresh_token = $api->get_refresh_token();
-#print_r($api);
-if (!$access_token || !$refresh_token) {
+if (!$refresh_token) {
     $api->parse_redirected_url($redirected_url);
+} else if (!$access_token) {
+    echo("Get new access token\n");
+    $api->update_access_token();
+    $LGsmartthinq_module->config['API_ACCESS_TOKEN'] = $api->get_access_token();
+    $LGsmartthinq_module->saveConfig();
 }
 
 $access_token = $api->get_access_token();

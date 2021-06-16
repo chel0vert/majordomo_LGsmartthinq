@@ -18,7 +18,6 @@ class LGAPI
     private $DATA_ROOT = 'result';
     private $SVC_CODE = 'SVC202';
     private $SVC_PHASE = 'OP';
-    #private $CLIENT_ID = '65260af7e8e6547b51fdccf930097c51eb9885a508d3fddfa9ee6cdec22ae1bd';
     private $CLIENT_ID = 'LGAO221A02';
     private $DATE_FORMAT = 'D, j M Y H:i:s +0000';
     private $APP_LEVEL = 'PRD';
@@ -74,9 +73,9 @@ class LGAPI
 
             $headers = $this->headers($add_headers);
 
-            #debmes($headers, 'lgsmarthinq');
-            #debmes($url, 'lgsmarthinq');
-            #debmes($json_request, 'lgsmarthinq');
+            debmes($url, 'lgsmarthinq');
+            debmes($headers, 'lgsmarthinq');
+            debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -114,7 +113,7 @@ class LGAPI
                     debmes($result->$data_root->returnMsg, 'lgsmarthinq');
                 }
                 $this->update_access_token();
-                $this->login();
+                #$this->login();
                 $this->set_api_error($response);
             } else if ($code == '0000') {
                 $success = true;
@@ -345,9 +344,59 @@ class LGAPI
         return $this->access_token;
     }
 
+    function update_session_id($data_root=Null)
+    {
+        if (!$data_root) {
+            $data_root = $this->DATA_ROOT;
+        }
+
+        $this->check_gateway();
+
+        $url = $this->api_root . "/member/login";
+
+        $headers = array(
+            'x-thinq-application-key: ' . $this->APP_KEY,
+            'x-thinq-security-key: ' . $this->SECURITY_KEY,
+            'Accept: application/json',
+            'Content-Type:application/json',
+        );
+
+        $data = array(
+            'countryCode' => $this->country,
+            'langCode' => $this->language,
+            'loginType' => 'EMP',
+            'token' => $this->access_token,
+        );
+
+        $json_request = $this->generate_json_request($data);
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json_request);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $data_root = $this->DATA_ROOT;
+        $json = json_decode($response);
+        $result = $json->$data_root;
+        $this->set_session_id((string)$result->jsessionId);
+
+        return $result;
+    }
+
     function login()
     {
         $this->check_gateway();
+
+        if (!$this->oauth2_backend_url) {
+            $values = $this->parse_redirected_url($this->redirected_url);
+            $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
+        }
 
         $url = $this->oauth2_backend_url . "oauth/1.0/oauth2/token";
 
@@ -396,6 +445,11 @@ class LGAPI
         }
         $result = Null;
 
+        if (!$this->oauth2_backend_url) {
+            $values = $this->parse_redirected_url($this->redirected_url);
+            $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
+        }
+
         $url = $this->oauth2_backend_url . "/oauth/1.0/oauth2/token";
         debmes($url, 'lgsmarthinq');
 
@@ -408,6 +462,7 @@ class LGAPI
             'Pragma: no-cache',
             'Cache-Control: no-cache'
         );
+        #print_r($url);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
@@ -417,10 +472,11 @@ class LGAPI
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
+        #print_r($response);
         #debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
-        #debmes($json, 'lgsmarthinq');
+        debmes($json, 'lgsmarthinq');
         if ($json->error) {
             debmes("Can not get access token: \n" .
                 "headers:\n" . print_r($headers, 1) .
@@ -429,6 +485,9 @@ class LGAPI
                 'lgsmarthinq');
         }
         $result = $json->access_token;
+        if ( $result ) {
+            $this->set_api_property('access_token', $result);
+        }
         debmes($result, 'lgsmarthinq');
         return $result;
     }
@@ -641,7 +700,38 @@ class LGAPI
         return $result;
     }
 
-    function send_command($device, $category, $command, $value, $params)
+    function get_device_config($device, $category = Null, $command='Get', $value='')
+    {
+        # params can be:
+        # $category     $command        $value              $data
+        # Config        Get             "<something>"       ''
+        # Control       Operation       Start               'DAECAgEAAAAAAAAAAAA=' bit program
+        # Control       Operation       Stop                ''
+        # Control       Set
+        $this->check_gateway();
+        $url = $this->api_devices_root . "/rti/rtiControl";
+
+        $data = array(
+            'cmd' => $category,
+            'cmdOpt' => $command,
+            'value' => $value,
+            'deviceId' => $device->deviceId,
+            'workId' => $this->gen_uuid(),
+            'data' => '',
+        );
+
+        $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
+        #print_r($response);
+        #echo "\n";
+        $code = $response->returnCd;
+        $result = Null;
+        if ($code == '0000') {
+            $result = $response;
+        }
+        return $result;
+    }
+
+    function send_command($device, $category = Null, $command='Get', $value, $params)
     {
         # params can be:
         # $category     $command        $value              $data
@@ -842,17 +932,10 @@ class LGAPI
 
     function get_device_configuration($device)
     {
+        $url = $device->modelJsonUrl;
         $type = $device->deviceType;
         $filename = __DIR__ . "/LGAPI_configuration_$type.json";
-        if (file_exists($filename) && (time() - filemtime($filename)) <= (24 * 60 * 60)) {
-            $content = file_get_contents($filename);
-            if ($content) {
-                $result = json_decode($content);
-            }
-        }
-
-        $url = $device->modelJsonUrl;
-        if (!$result && $url) {
+        if ($url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -866,6 +949,13 @@ class LGAPI
                 file_put_contents($filename, $response);
                 #debmes($response, 'lgsmarthinq');
                 $result = json_decode($response);
+            }
+        } else {
+            if (file_exists($filename)) {
+                $content = file_get_contents($filename);
+                if ($content) {
+                    $result = json_decode($content);
+                }
             }
         }
 
