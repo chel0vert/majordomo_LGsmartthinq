@@ -395,7 +395,7 @@ class LGsmartthinq extends module
             foreach ($devices as $device) {
 
                 #debmes($device, 'lgsmarthinq');
-                $device_id = $this->getDeviceIdPerMacAddress($device);
+                $device_id = $this->getMJDDeviceId($device);
                 if ($device_id) {
                     #debmes("Device ID: $device_id", 'lgsmarthinq');
                     foreach ($device as $key => $value) {
@@ -487,6 +487,7 @@ class LGsmartthinq extends module
  lgsmarthinq: VALUE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq: UPDATED datetime
  lgsmarthinq_devices: ID int(10) unsigned NOT NULL auto_increment
+ lgsmarthinq_devices: DEVICE_ID text NOT NULL DEFAULT ''
  lgsmarthinq_devices: MAC text NOT NULL DEFAULT ''
  lgsmarthinq_devices: IMAGE text NOT NULL DEFAULT ''
  lgsmarthinq_devices: TITLE varchar(100) NOT NULL DEFAULT ''
@@ -537,6 +538,19 @@ EOD;
         return $values;
     }
 
+    function getMJDDeviceId($device)
+    {
+        $device_id = $this->getDeviceIdPerMacAddress($device);
+        if (!$device_id){
+            $device_id = $this->deviceId2MJD_ID($device);
+        }
+        if (!$device_id) {
+            debmes("Can not find device(no mac or deviceId from api)", 'lgsmarthinq');
+            debmes($device, 'lgsmarthinq');
+        }
+        return $device_id;
+    }
+
     function getDeviceIdPerMacAddress($device)
     {
         if (!$device->macAddress) {
@@ -555,6 +569,31 @@ EOD;
             $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
             $result = $values['ID'];
             #debmes("insert device " . $device->macAddress . " => id $result", 'lgsmarthinq');
+        } else {
+            $values['UPDATED'] = date('Y-m-d H:i:s');
+            SQLUpdate('lgsmarthinq_devices', $values);
+            $result = $values['ID'];
+        }
+        return $result;
+    }
+
+    function deviceId2MJD_ID($device)
+    {
+        if (!$device->deviceId) {
+            return Null;
+        }
+
+        $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->deviceId . "'");
+        if (!isset($values)) {
+            $values = array(
+                'TITLE' => $device->alias,
+                'DEVICE_ID' => $device->deviceId,
+                'IMAGE' => $device->smallImageUrl,
+                'UPDATED' => date('Y-m-d H:i:s'),
+            );
+            SQLInsert('lgsmarthinq_devices', $values);
+            $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->deviceId . "'");
+            $result = $values['ID'];
         } else {
             $values['UPDATED'] = date('Y-m-d H:i:s');
             SQLUpdate('lgsmarthinq_devices', $values);

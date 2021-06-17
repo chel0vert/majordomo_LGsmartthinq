@@ -315,7 +315,7 @@ class LGAPI
         $url = $this->api_root . "/device/deviceList";
         $data = array();
         $result = $this->lgedm_post($url, $data);
-        if (count($result) > 0) {
+        if ($result) {
             $this->devices = $this->get_items($result);
         } else {
             $this->devices = Null;
