@@ -604,25 +604,37 @@ EOD;
             $value = json_encode($value);
         }
         $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID='$id' and TITLE='$property'");
+        $device_values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE ID='$id'");
+        $device_linked_object = $device_values['LINKED_OBJECT'];
         if (isset($values) && isset($values['ID'])) {
             $values['VALUE'] = $value;
+            if (!$values['LINKED_PROPERTY']) {
+                $values['LINKED_PROPERTY'] = $property;
+            }
+            if (!$values['LINKED_OBJECT']) {
+                $values['LINKED_OBJECT'] = $device_linked_object;
+            }
             SQLUpdate('lgsmarthinq_values', $values);
-            #debmes("update device id($id) property $property => $value ", 'lgsmarthinq');
         } else {
-            #print_r($value);
             $values = array(
                 'TITLE' => $property,
                 'DEVICE_ID' => $id,
                 'VALUE' => $value,
+                'LINKED_PROPERTY' => $property,
+                'LINKED_OBJECT' => $device_values['LINKED_OBJECT'],
             );
             #debmes("insert device id($id) property $property => $value", 'lgsmarthinq');
             SQLInsert('lgsmarthinq_values', $values);
         }
 
         $linked_object = $values['LINKED_OBJECT'];
-        $linked_method = $values['LINKED_METHOD'];
+        if (!$linked_object) {
+            $linked_object = $device_linked_object;
+        }
+
         if (isset($linked_object)) {
             sg("$linked_object.$property", $value);
+            $linked_method = $values['LINKED_METHOD'];
             if (isset($linked_method)) {
                 callMethodSafe("$linked_object.$linked_method");
             }
