@@ -350,12 +350,16 @@ class LGsmartthinq extends module
     {
         $this->getConfig();
         $access_token = $this->config['API_ACCESS_TOKEN'];
+        $refresh_token = $this->config['API_REFRESH_TOKEN'];
         $user_number = $this->config['API_USER_NUMBER'];
         if (isset($access_token)) {
             $this->api->set_access_token($access_token);
         }
         if (isset($user_number)) {
             $this->api->set_api_property('user_number', $user_number);
+        }
+        if ($refresh_token) {
+            $this->api->set_api_property('refresh_token', $refresh_token);
         }
         $country = $this->config['API_COUNTRY'];
         $language = $this->config['API_LANGUAGE'];
@@ -394,7 +398,7 @@ class LGsmartthinq extends module
             foreach ($devices as $device) {
 
                 #debmes($device, 'lgsmarthinq');
-                $device_id = $this->getDeviceIdPerMacAddress($device);
+                $device_id = $this->getMJDDeviceId($device);
                 if ($device_id) {
                     #debmes("Device ID: $device_id", 'lgsmarthinq');
                     foreach ($device as $key => $value) {
@@ -487,6 +491,7 @@ class LGsmartthinq extends module
  lgsmarthinq: VALUE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq: UPDATED datetime
  lgsmarthinq_devices: ID int(10) unsigned NOT NULL auto_increment
+ lgsmarthinq_devices: DEVICE_ID text NOT NULL DEFAULT ''
  lgsmarthinq_devices: MAC text NOT NULL DEFAULT ''
  lgsmarthinq_devices: IMAGE text NOT NULL DEFAULT ''
  lgsmarthinq_devices: TITLE varchar(100) NOT NULL DEFAULT ''
@@ -537,13 +542,35 @@ EOD;
         return $values;
     }
 
-    function getDeviceIdPerMacAddress($device)
+    function getMJDDeviceId($device)
     {
-        if (!$device->macAddress) {
+        $device_id = $this->getMJDDeviceIdByAPIDeviceId($device);
+        if (!$device_id) {
+            $device_id = $this->getDeviceIdByMacAddress($device);
+        }
+        return $device_id;
+    }
+
+    function getMJDDeviceIdByAPIDeviceId($device)
+    {
+        $result = $this->getDeviceIdByField('DEVICE_ID', $device->deviceId, $device);
+        return $result;
+    }
+
+    function getDeviceIdByMacAddress($device)
+    {
+        $result = $this->getDeviceIdByField('MAC', $device->macAddress, $device);
+        return $result;
+    }
+
+    function getDeviceIdByField($field, $value, $device)
+    {
+        if (!$value) {
+            debmes("Can not get device id by value '$value' and field '$field'", 'lgsmarthinq');
             return Null;
         }
-
-        $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
+        $select = "SELECT * FROM lgsmarthinq_devices WHERE $field='$value'";
+        $values = SQLSelectOne($select);
         if (!isset($values)) {
             $values = array(
                 'TITLE' => $device->alias,
@@ -552,9 +579,8 @@ EOD;
                 'UPDATED' => date('Y-m-d H:i:s'),
             );
             SQLInsert('lgsmarthinq_devices', $values);
-            $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
+            $values = SQLSelectOne($select);
             $result = $values['ID'];
-            #debmes("insert device " . $device->macAddress . " => id $result", 'lgsmarthinq');
         } else {
             $values['UPDATED'] = date('Y-m-d H:i:s');
             SQLUpdate('lgsmarthinq_devices', $values);

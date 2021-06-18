@@ -22,9 +22,25 @@ $api->set_api_property('redirected_url', $LGsmartthinq_module->config['API_REDIR
 
 $access_token = $api->get_access_token();
 $refresh_token = $api->get_refresh_token();
+
 if (!$refresh_token) {
+    echo("Getting new refresh token. url: $redirected_url\n");
     $api->parse_redirected_url($redirected_url);
-} else if (!$access_token) {
+    $refresh_token = $api->get_refresh_token();
+    if ($refresh_token) {
+        echo("New refresh token was added to module params\n");
+        $LGsmartthinq_module->config['API_REFRESH_TOKEN'] = $refresh_token;
+        $LGsmartthinq_module->saveConfig();
+    }
+    $access_token = $api->get_access_token();
+    if ($access_token) {
+        echo("New access token was added to module params\n");
+        $LGsmartthinq_module->config['API_ACCESS_TOKEN'] = $access_token;
+        $LGsmartthinq_module->saveConfig();
+    }
+}
+
+if ($refresh_token && !$access_token) {
     echo("Get new access token\n");
     $api->update_access_token();
     $LGsmartthinq_module->config['API_ACCESS_TOKEN'] = $api->get_access_token();
@@ -34,13 +50,11 @@ if (!$refresh_token) {
 $access_token = $api->get_access_token();
 $refresh_token = $api->get_refresh_token();
 if (!$access_token || !$refresh_token) {
-    echo "access token: $access_token ; refresh_token: $refresh_token\n";
-    debmes("No access token for LG smartthinq", 'lgsmarthinq');
+    echo "ERROR: access token: $access_token ; refresh_token: $refresh_token\n";
+    debmes("No access/refresh token for LG smartthinq", 'lgsmarthinq');
     exit;
 }
-#$tmp = SQLSelectOne("SELECT ID FROM lgsmarthinq_devices LIMIT 1");
-#if (!$tmp['ID'])
-#   exit; // no devices added -- no need to run this cycle
+
 echo date("H:i:s") . " running " . basename(__FILE__) . PHP_EOL;
 $latest_check = 0;
 
