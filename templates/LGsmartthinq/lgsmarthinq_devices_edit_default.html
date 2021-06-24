@@ -26,42 +26,7 @@
  </label>
  <div class="col-lg-9"><input id="linked_object" name="linked_object" value="[#LINKED_OBJECT#]" type="text" class="form-control"></div>
 </div>
-<!-- LINKED_PROPERTY (varchar) -->
-<div class="form-group[#if ERR_LINKED_PROPERTY#] has-error[#endif#]">
- <label for="linked_property" class="col-lg-3 control-label">
- <#LANG_LINKED_PROPERTY#>:
- </label>
- <div class="col-lg-9"><input id="linked_property" name="linked_property" value="[#LINKED_PROPERTY#]" type="text" class="form-control"></div>
-</div>
-<!-- LINKED_METHOD (varchar) -->
-<div class="form-group[#if ERR_LINKED_METHOD#] has-error[#endif#]">
- <label for="linked_method" class="col-lg-3 control-label">
- <#LANG_METHOD#>:
- </label>
- <div class="col-lg-9"><input id="linked_method" name="linked_method" value="[#LINKED_METHOD#]" type="text" class="form-control"></div>
-</div>
-<!-- UPDATED (datetime) -->
-<div class="form-group[#if ERR_UPDATED#] has-error[#endif#]">
- <label class="col-lg-3 control-label"[#if ERR_UPDATED#] style="color:red;font-weight:bold"[#endif#]>
- <#LANG_UPDATED#>:
- </label>
- <div class="col-lg-4">
- <input type="text" name="updated_date" value="[#UPDATED_DATE#]" maxlength=10 size=12 class="form-control">
- [#module name="dateselect" field="updated_date" form="frmEdit"#]
- &nbsp;&nbsp;&nbsp;
- <select name="updated_hours" class="form-control">
- [#begin UPDATED_HOURS#]
- <option[#if SELECTED#] selected[#endif SELECTED#]>[#TITLE#]
- [#end UPDATED_HOURS#]
- </select>
- :
- <select name="updated_minutes" class="form-control">
- [#begin UPDATED_MINUTES#]
- <option[#if SELECTED#] selected[#endif SELECTED#]>[#TITLE#]
- [#end UPDATED_MINUTES#]
- </select>
- </div>
-</div>
+
 [#module name="linkedobject" object_field="linked_object" property_field="linked_property" method_field="linked_method"#]
 <div class="form-group">
         <div class="col-lg-offset-3 col-lg-4">
