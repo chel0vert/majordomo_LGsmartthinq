@@ -26,6 +26,7 @@ $refresh_token = $api->get_refresh_token();
 if (!$refresh_token) {
     echo("Getting new refresh token. url: $redirected_url\n");
     $api->parse_redirected_url($redirected_url);
+    $api->login();
     $refresh_token = $api->get_refresh_token();
     if ($refresh_token) {
         echo("New refresh token was added to module params\n");
@@ -50,18 +51,29 @@ if ($refresh_token && !$access_token) {
 $access_token = $api->get_access_token();
 $refresh_token = $api->get_refresh_token();
 if (!$access_token || !$refresh_token) {
-    echo "ERROR: access token: $access_token ; refresh_token: $refresh_token\n";
-    debmes("No access/refresh token for LG smartthinq", 'lgsmarthinq');
+    $message = "ERROR: access token: $access_token ; refresh_token: $refresh_token. Exit";
+    debmes($message, 'lgsmarthinq');
+    echo "$message\n";
     exit;
+} else {
+    $message = "access token and refresh token are ok. continue the cycle";
+    debmes($message, 'lgsmarthinq');
+    echo "$message\n";
 }
 
 echo date("H:i:s") . " running " . basename(__FILE__) . PHP_EOL;
 $latest_check = 0;
+$expire = $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'];
+if (!$expire) {
+    $expire = 3600;
+    $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'] = $expire;
+    $LGsmartthinq_module->saveConfig();
+}
 
 while (1) {
 
     $module_config = $LGsmartthinq_module->getConfig();
-    $checkEvery = $module_config['API_REFRESH_PERIOD']; // poll every 5 seconds
+    $checkEvery = $module_config['API_REFRESH_PERIOD'];
 
     if ($checkEvery <= 0) {
         $checkEvery = 60;
@@ -71,19 +83,30 @@ while (1) {
     if ((time() - $latest_check) > $checkEvery) {
         $latest_check = time();
         echo date('Y-m-d H:i:s') . ' Polling devices...' . "\n";
-        $expire = $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'];
-        $last_access_token_check = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
-        $current_timestamp = time();
-        if (($current_timestamp - $last_access_token_check) > $expire || !$api->get_access_token() || $api->get_api_error()) {
-            $api->set_api_property('country', $LGsmartthinq_module->config['API_COUNTRY']);
-            $api->set_api_property('language', $LGsmartthinq_module->config['API_LANGUAGE']);
+        $last_access_token_update = $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'];
+        if (($latest_check - $last_access_token_update) > $expire || !$api->get_access_token() || $api->get_api_error()) {
             $api->update_access_token();
-            $LGsmartthinq_module->config['API_ACCESS_TOKEN'] = $api->get_access_token();
-            $LGsmartthinq_module->config['API_ACCESS_TOKEN_EXPIRE'] = 3600;
-            $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'] = $current_timestamp;
-            $LGsmartthinq_module->config['API_REFRESH_TOKEN'] = $api->get_refresh_token();
-            $LGsmartthinq_module->config['API_SESSION_ID'] = $api->get_session_id();
-            $LGsmartthinq_module->saveConfig();
+            $refresh_token = $api->get_refresh_token();
+            $access_token = $api->get_access_token();
+            if (!$access_token) {
+                $message = "Cannot update access_token. See log";
+                debmes($message, 'lgsmarthinq');
+                debmes($api->get_api_error, 'lgsmarthinq');
+                echo "$message\n";
+            }
+            if (!$refresh_token){
+                $message = "Cannot update refresh_token. See log";
+                debmes($message, 'lgsmarthinq');
+                debmes($api->get_api_error, 'lgsmarthinq');
+                echo "$message\n";
+            }
+            if ($access_token && $refresh_token) {
+                $LGsmartthinq_module->config['API_ACCESS_TOKEN'] = $access_token;
+                $LGsmartthinq_module->config['API_ACCESS_TOKEN_TIMESTAMP'] = $latest_check;
+                $LGsmartthinq_module->config['API_REFRESH_TOKEN'] = $refresh_token;
+                $LGsmartthinq_module->config['API_SESSION_ID'] = $api->get_session_id();
+                $LGsmartthinq_module->saveConfig();
+            }
         }
         $LGsmartthinq_module->processCycle();
     }
@@ -92,6 +115,6 @@ while (1) {
         $db->Disconnect();
         exit;
     }
-    sleep(1);
+    sleep($checkEvery);
 }
 DebMes("Unexpected close of cycle: " . basename(__FILE__));

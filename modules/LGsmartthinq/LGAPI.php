@@ -41,6 +41,7 @@ class LGAPI
         if ($redirected_url) {
             $this->redirected_url = $redirected_url; #[require]
             $this->parse_redirected_url($redirected_url);
+            $this->login();
         }
     }
 
@@ -55,7 +56,6 @@ class LGAPI
         $this->set_api_property('user_number', $result['user_number']);
         $this->set_api_property('oauth_code', $result['code']);
         $this->set_api_property('oauth2_backend_url', urldecode($result['oauth2_backend_url']));
-        $this->login();
         return $result;
     }
 

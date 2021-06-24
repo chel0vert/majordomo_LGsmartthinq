@@ -164,6 +164,7 @@ class LGsmartthinq extends module
             $this->config['API_REDIRECTED_URL'] = $api_redirected_url;
             if ($api_redirected_url) {
                 $this->api->parse_redirected_url($api_redirected_url);
+                $this->api->login();
                 $this->config['API_ACCESS_TOKEN'] = $this->api->get_access_token();
                 $this->config['API_REFRESH_TOKEN'] = $this->api->get_refresh_token();
                 $this->config['API_USER_NUMBER'] = $this->api->get_user_number();
