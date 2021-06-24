@@ -135,40 +135,40 @@ class LGsmartthinq extends module
      */
     function admin(&$out)
     {
+        global $api_url;
+        global $api_redirected_url;
         $this->getConfig();
-        $out['API_URL'] = $this->config['API_URL'];
-        if (!$out['API_URL']) {
-            $out['API_URL'] = $api_url;
-        }
-        $out['API_KEY'] = $this->config['API_KEY'];
-        $out['API_ACCESS_TOKEN'] = $this->config['API_ACCESS_TOKEN'];
-        $out['API_REFRESH_TOKEN'] = $this->config['API_REFRESH_TOKEN'];
         $out['API_COUNTRY'] = $this->config['API_COUNTRY'];
         $out['API_LANGUAGE'] = $this->config['API_LANGUAGE'];
         $out['API_REFRESH_PERIOD'] = $this->config['API_REFRESH_PERIOD'];
+        $out['API_REDIRECTED_URL'] = $this->config['API_REDIRECTED_URL'];
+        global $api_country;
+        global $api_language;
+        $this->api->set_api_property("country", $this->config['API_COUNTRY']);
+        $this->api->set_api_property("language", $this->config['API_LANGUAGE']);
+        $this->api->check_gateway();
+        $out['OAUTH_URL'] = $this->api->oauth_url();
         if ($this->view_mode == 'update_settings') {
-            global $api_url;
             global $api_key;
-            $this->config['API_KEY'] = $api_key;
             global $api_access_token;
-            $this->config['API_ACCESS_TOKEN'] = $api_access_token;
             global $api_refresh_token;
-            if ($api_refresh_token) {
-                $this->api->set_api_property("refresh_token", $api_refresh_token);
-                $this->config['API_REFRESH_TOKEN'] = $api_refresh_token;
-            }
-            global $api_country;
             $this->config['API_COUNTRY'] = $api_country;
-            global $api_language;
             $this->config['API_LANGUAGE'] = $api_language;
             global $api_refresh_period;
             $this->config['API_REFRESH_PERIOD'] = $api_refresh_period;
-            $this->api->set_api_property("access_token", $api_access_token);
             $this->api->set_api_property("country", $api_country);
             $this->api->set_api_property("language", $api_language);
             $this->api->check_gateway();
             $api_url = $this->api->oauth_url();
             $this->config['API_URL'] = $api_url;
+            $this->config['API_REDIRECTED_URL'] = $api_redirected_url;
+            if ($api_redirected_url) {
+                $this->api->parse_redirected_url($api_redirected_url);
+                $this->api->login();
+                $this->config['API_ACCESS_TOKEN'] = $this->api->get_access_token();
+                $this->config['API_REFRESH_TOKEN'] = $this->api->get_refresh_token();
+                $this->config['API_USER_NUMBER'] = $this->api->get_user_number();
+            }
             $this->saveConfig();
             $this->redirect("?");
         }
@@ -311,7 +311,7 @@ class LGsmartthinq extends module
                         $data = $this->api->update_course_command($device, $params);
                         if ($value == 'StartCustomProgramm') {
                             $device->Programm = Null;
-                            $this->api->start_command($device, 'Control', 'Operation', 'Start');
+                            $this->api->start_command($device, 'Control', 'Operation', 'Start', $params);
                         }
                     }
                 } else if ($property == 'status') {
@@ -351,12 +351,16 @@ class LGsmartthinq extends module
     {
         $this->getConfig();
         $access_token = $this->config['API_ACCESS_TOKEN'];
-        $session_id = $this->config['API_SESSION_ID'];
+        $refresh_token = $this->config['API_REFRESH_TOKEN'];
+        $user_number = $this->config['API_USER_NUMBER'];
         if (isset($access_token)) {
             $this->api->set_access_token($access_token);
         }
-        if (isset($session_id)) {
-            $this->api->set_session_id($session_id);
+        if (isset($user_number)) {
+            $this->api->set_api_property('user_number', $user_number);
+        }
+        if ($refresh_token) {
+            $this->api->set_api_property('refresh_token', $refresh_token);
         }
         $country = $this->config['API_COUNTRY'];
         $language = $this->config['API_LANGUAGE'];
@@ -395,7 +399,7 @@ class LGsmartthinq extends module
             foreach ($devices as $device) {
 
                 #debmes($device, 'lgsmarthinq');
-                $device_id = $this->getDeviceIdPerMacAddress($device);
+                $device_id = $this->getMJDDeviceId($device);
                 if ($device_id) {
                     #debmes("Device ID: $device_id", 'lgsmarthinq');
                     foreach ($device as $key => $value) {
@@ -427,6 +431,7 @@ class LGsmartthinq extends module
                             foreach ($result as $key => $value) {
                                 #print_r($key);
                                 #print_r($value);
+                                echo $key . " => " . $value."\n";
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }
@@ -487,6 +492,7 @@ class LGsmartthinq extends module
  lgsmarthinq: VALUE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq: UPDATED datetime
  lgsmarthinq_devices: ID int(10) unsigned NOT NULL auto_increment
+ lgsmarthinq_devices: DEVICE_ID text NOT NULL DEFAULT ''
  lgsmarthinq_devices: MAC text NOT NULL DEFAULT ''
  lgsmarthinq_devices: IMAGE text NOT NULL DEFAULT ''
  lgsmarthinq_devices: TITLE varchar(100) NOT NULL DEFAULT ''
@@ -537,13 +543,35 @@ EOD;
         return $values;
     }
 
-    function getDeviceIdPerMacAddress($device)
+    function getMJDDeviceId($device)
     {
-        if (!$device->macAddress) {
+        $device_id = $this->getMJDDeviceIdByAPIDeviceId($device);
+        if (!$device_id) {
+            $device_id = $this->getDeviceIdByMacAddress($device);
+        }
+        return $device_id;
+    }
+
+    function getMJDDeviceIdByAPIDeviceId($device)
+    {
+        $result = $this->getDeviceIdByField('DEVICE_ID', $device->deviceId, $device);
+        return $result;
+    }
+
+    function getDeviceIdByMacAddress($device)
+    {
+        $result = $this->getDeviceIdByField('MAC', $device->macAddress, $device);
+        return $result;
+    }
+
+    function getDeviceIdByField($field, $value, $device)
+    {
+        if (!$value) {
+            debmes("Can not get device id by value '$value' and field '$field'", 'lgsmarthinq');
             return Null;
         }
-
-        $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
+        $select = "SELECT * FROM lgsmarthinq_devices WHERE $field='$value'";
+        $values = SQLSelectOne($select);
         if (!isset($values)) {
             $values = array(
                 'TITLE' => $device->alias,
@@ -552,9 +580,8 @@ EOD;
                 'UPDATED' => date('Y-m-d H:i:s'),
             );
             SQLInsert('lgsmarthinq_devices', $values);
-            $values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE MAC='" . $device->macAddress . "'");
+            $values = SQLSelectOne($select);
             $result = $values['ID'];
-            #debmes("insert device " . $device->macAddress . " => id $result", 'lgsmarthinq');
         } else {
             $values['UPDATED'] = date('Y-m-d H:i:s');
             SQLUpdate('lgsmarthinq_devices', $values);
@@ -578,25 +605,37 @@ EOD;
             $value = json_encode($value);
         }
         $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID='$id' and TITLE='$property'");
+        $device_values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE ID='$id'");
+        $device_linked_object = $device_values['LINKED_OBJECT'];
         if (isset($values) && isset($values['ID'])) {
             $values['VALUE'] = $value;
+            if (!$values['LINKED_PROPERTY']) {
+                $values['LINKED_PROPERTY'] = $property;
+            }
+            if (!$values['LINKED_OBJECT']) {
+                $values['LINKED_OBJECT'] = $device_linked_object;
+            }
             SQLUpdate('lgsmarthinq_values', $values);
-            #debmes("update device id($id) property $property => $value ", 'lgsmarthinq');
         } else {
-            #print_r($value);
             $values = array(
                 'TITLE' => $property,
                 'DEVICE_ID' => $id,
                 'VALUE' => $value,
+                'LINKED_PROPERTY' => $property,
+                'LINKED_OBJECT' => $device_values['LINKED_OBJECT'],
             );
             #debmes("insert device id($id) property $property => $value", 'lgsmarthinq');
             SQLInsert('lgsmarthinq_values', $values);
         }
 
         $linked_object = $values['LINKED_OBJECT'];
-        $linked_method = $values['LINKED_METHOD'];
+        if (!$linked_object) {
+            $linked_object = $device_linked_object;
+        }
+
         if (isset($linked_object)) {
             sg("$linked_object.$property", $value);
+            $linked_method = $values['LINKED_METHOD'];
             if (isset($linked_method)) {
                 callMethodSafe("$linked_object.$linked_method");
             }
