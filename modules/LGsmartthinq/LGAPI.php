@@ -10,6 +10,7 @@ class LGAPI
     private $user_number;
     private $refresh_token;
     private $session_id;
+    private $homeId;
 
     private $GATEWAY_URL = 'https://route.lgthinq.com:46030/v1/service/application/gateway-uri';
     private $API_KEY = 'VGhpblEyLjAgU0VSVklDRQ==';
@@ -104,7 +105,7 @@ class LGAPI
                 $code = $result->$data_root->returnCd;
             }
             #echo $code;
-            if ($code == "0102" || $code == "9003") {
+            if ($code == "0102" || $code == "9003" ) {
                 if ($code == '9003') {
                     debmes("Session creation failure", 'lgsmarthinq');
                 } else {
@@ -501,14 +502,14 @@ class LGAPI
 
     function get_items($response)
     {
-        return $response->item;
+        return $response->devices;
     }
 
     function get_devices()
     {
         return $this->devices;
     }
-
+/*
     function set_devices()
     {
         $this->check_gateway();
@@ -522,6 +523,45 @@ class LGAPI
             $this->devices = Null;
         }
         return $this->devices;
+    }
+*/
+
+    function set_devices()
+    {
+        $this->check_gateway();
+        $homes = $this->get_homes();
+        if (is_array($homes)) {
+            $devices = array();
+            foreach($homes as $home) {
+                $homeId = $home->homeId;
+                $url = $this->api_root . "/service/homes/" . $homeId;
+                $data = array();
+                $result = $this->lgedm_get($url, $data);
+                if ($result && count($result->devices) > 0) {
+                    $home_devices = $this->get_items($result);
+                    $devices = array_merge($devices, $home_devices);
+                }
+            }
+            if (count($devices)) {
+                $this->devices = $devices;
+            } else {
+                $this->devices = Null;
+            }
+        }
+        return $this->devices;
+    }
+
+    function get_homes() {
+        $this->check_gateway();
+        $url = $this->api_root . "/service/homes";
+        $data = array();
+        $result = $this->lgedm_get($url, $data);
+        $homes = $result->item;
+        if (!is_array($homes)) {
+            $homes = Null;
+            debmes("No homes found", 'lgsmarthinq');
+        }
+        return $homes;
     }
 
     function get_user_number(){
