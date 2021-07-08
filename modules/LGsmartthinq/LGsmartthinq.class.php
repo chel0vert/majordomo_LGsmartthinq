@@ -295,17 +295,17 @@ class LGsmartthinq extends module
                         #debmes($device, 'lgsmarthinq');
                         $device->Course = $Programm; # значение=3 у стиральной машинке F2J7HSR2S = Моя программа
                         $params = array(
-                            'Course'            => $Programm,
-                            'Wash'              => gg("$linked_object.SetWash"),#0,
-                            'SpinSpeed'         => gg("$linked_object.SetSpinSpeed"),#1,
-                            'WaterTemp'         => gg("$linked_object.SetWaterTemp"),#1,
-                            'RinseOption'       => gg("$linked_object.SetRinseOption"),#1,
-                            'Reserve_Time_H'    => gg("$linked_object.SetReserve_Time_H"),#0,
-                            'Reserve_Time_M'    => gg("$linked_object.SetReserve_Time_M"),#0,
-                            'LoadItem'          => gg("$linked_object.SetLoadItem"),#0,
-                            'Option1'           => gg("$linked_object.SetOption1"),#3,
-                            'Option2'           => gg("$linked_object.SetOption2"),#0,
-                            'SmartCourse'       => gg("$linked_object.SetSmartCourse"),#0,
+                            'Course' => $Programm,
+                            'Wash' => gg("$linked_object.SetWash"),#0,
+                            'SpinSpeed' => gg("$linked_object.SetSpinSpeed"),#1,
+                            'WaterTemp' => gg("$linked_object.SetWaterTemp"),#1,
+                            'RinseOption' => gg("$linked_object.SetRinseOption"),#1,
+                            'Reserve_Time_H' => gg("$linked_object.SetReserve_Time_H"),#0,
+                            'Reserve_Time_M' => gg("$linked_object.SetReserve_Time_M"),#0,
+                            'LoadItem' => gg("$linked_object.SetLoadItem"),#0,
+                            'Option1' => gg("$linked_object.SetOption1"),#3,
+                            'Option2' => gg("$linked_object.SetOption2"),#0,
+                            'SmartCourse' => gg("$linked_object.SetSmartCourse"),#0,
                         );
                         #debmes($params, 'lgsmarthinq');
                         $data = $this->api->update_course_command($device, $params);
@@ -330,7 +330,8 @@ class LGsmartthinq extends module
         }
     }
 
-    function getDeviceByID($device_id) {
+    function getDeviceByID($device_id)
+    {
         $fields = array(
             deviceId => Null,
             modelJsonUrl => Null,
@@ -393,15 +394,18 @@ class LGsmartthinq extends module
             return Null;
         } else {
             $devices = $this->api->get_devices(); # получение устройств с api
-
-
-            #debmes($devices, 'lgsmarthinq');
             foreach ($devices as $device) {
-
-                #debmes($device, 'lgsmarthinq');
                 $device_id = $this->getMJDDeviceId($device);
+                if (!$device_id) {
+                    $device_id = $this->addDevice2MJD($device);
+                    if ($device_id) {
+                        debmes("added device: '$device->deviceId' => '$device_id' id in DB ", 'lgsmarthinq');
+                    } else {
+                        debmes("Cannot add device. No deviceId from api: Device:", 'lgsmarthinq');
+                        debmes($device, 'lgsmarthinq');
+                    }
+                }
                 if ($device_id) {
-                    #debmes("Device ID: $device_id", 'lgsmarthinq');
                     foreach ($device as $key => $value) {
                         $this->set_device_property($device_id, $key, $value);
                     }
@@ -410,28 +414,22 @@ class LGsmartthinq extends module
                         $workId = $this->api->monitor_start($device->deviceId);
                         $try = 0;
                         $exit_flag = False;
-                        $result = array();
+                        $decoded_properties = array();
                         do {
                             $data = $this->api->monitor_result($device->deviceId);
-
-                            $returnCode = $data->returnCode;
-                            if ($returnCode != '0000') {
-                                $this->api->monitor_start($device->deviceId);
-                            } else {
-                                if ($data->returnData) {
-                                    $result = $this->api->decode_data($device, $data->returnData);
-                                    #debmes('decoded:', 'lgsmarthinq');
-                                    #debmes($result, 'lgsmarthinq');
-                                }
+                            $encoded_properties = $data->returnData;
+                            if ($encoded_properties) {
+                                $decoded_properties = $this->api->decode_data($device, $encoded_properties);
+                                break;
                             }
                             $try = $try + 1;
                             sleep(1);
                         } while ($try < 5);
-                        if ($result) {
-                            foreach ($result as $key => $value) {
+                        if ($decoded_properties) {
+                            foreach ($decoded_properties as $key => $value) {
                                 #print_r($key);
                                 #print_r($value);
-                                echo $key . " => " . $value."\n";
+                                echo $key . " => " . $value . "\n";
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }
@@ -493,7 +491,7 @@ class LGsmartthinq extends module
  lgsmarthinq: UPDATED datetime
  lgsmarthinq_devices: ID int(10) unsigned NOT NULL auto_increment
  lgsmarthinq_devices: DEVICE_ID text NOT NULL DEFAULT ''
- lgsmarthinq_devices: MAC text NOT NULL DEFAULT ''
+ lgsmarthinq_devices: MAC text NOT NULL DEFAULT '' 
  lgsmarthinq_devices: IMAGE text NOT NULL DEFAULT ''
  lgsmarthinq_devices: TITLE varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq_devices: LINKED_OBJECT varchar(100) NOT NULL DEFAULT ''
@@ -547,7 +545,7 @@ EOD;
     {
         $device_id = $this->getMJDDeviceIdByAPIDeviceId($device);
         if (!$device_id) {
-            $device_id = $this->getDeviceIdByMacAddress($device);
+            $device_id = $this->getMJDDeviceIdByMacAddress($device);
         }
         return $device_id;
     }
@@ -558,36 +556,50 @@ EOD;
         return $result;
     }
 
-    function getDeviceIdByMacAddress($device)
+    function getMJDDeviceIdByMacAddress($device)
     {
-        $result = $this->getDeviceIdByField('MAC', $device->macAddress, $device);
+        $result = $this->getDeviceIdByField('MAC', $device->deviceId, $device);
         return $result;
     }
 
     function getDeviceIdByField($field, $value, $device)
     {
+        $result = Null;
         if (!$value) {
             debmes("Can not get device id by value '$value' and field '$field'", 'lgsmarthinq');
             return Null;
         }
         $select = "SELECT * FROM lgsmarthinq_devices WHERE $field='$value'";
-        $values = SQLSelectOne($select);
-        if (!isset($values)) {
-            $values = array(
-                'TITLE' => $device->alias,
-                'MAC' => $device->macAddress,
-                'IMAGE' => $device->smallImageUrl,
-                'UPDATED' => date('Y-m-d H:i:s'),
-            );
-            SQLInsert('lgsmarthinq_devices', $values);
+        try {
             $values = SQLSelectOne($select);
-            $result = $values['ID'];
-        } else {
+        } catch (Exception $e) {
+            echo $e->getMessage() . "\n";
+            debmes($e->getMessage(), 'lgsmarthinq');
+            $values = Null;
+        }
+        if (isset($values)) {
+            $values['DEVICE_ID'] = $device->deviceId;
             $values['UPDATED'] = date('Y-m-d H:i:s');
             SQLUpdate('lgsmarthinq_devices', $values);
             $result = $values['ID'];
         }
         return $result;
+    }
+
+    function addDevice2MJD($device)
+    {
+        $id = $this->getMJDDeviceId($device);
+        if (!$id && $device->deviceId) {
+            $values = array(
+                'DEVICE_ID' => $device->deviceId,
+                'TITLE' => $device->alias,
+                'IMAGE' => $device->smallImageUrl,
+                'UPDATED' => date('Y-m-d H:i:s'),
+            );
+            SQLInsert('lgsmarthinq_devices', $values);
+            $id = $this->getMJDDeviceId($device);
+        }
+        return $id;
     }
 
     function get_device_property($id, $property)
