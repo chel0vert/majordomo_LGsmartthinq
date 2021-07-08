@@ -28,7 +28,7 @@ class LGsmartthinq extends module
         $this->module_category = "<#LANG_SECTION_DEVICES#>";
         $this->api = new LGAPI(Null, Null, Null, Null, Null);
         $this->device_types2image = array(
-            '201' => "/img/modules/$this->name/LGsmartthinq_wm.png",
+            '201' => "/img/modules/LGsmartthinq_wm.png",
         );
         $this->checkInstalled();
     }
@@ -357,10 +357,10 @@ class LGsmartthinq extends module
         $access_token = $this->config['API_ACCESS_TOKEN'];
         $refresh_token = $this->config['API_REFRESH_TOKEN'];
         $user_number = $this->config['API_USER_NUMBER'];
-        if (isset($access_token)) {
-            $this->api->set_access_token($access_token);
+        if ($access_token) {
+            $this->api->set_api_property('access_token', $access_token);
         }
-        if (isset($user_number)) {
+        if ($user_number) {
             $this->api->set_api_property('user_number', $user_number);
         }
         if ($refresh_token) {
@@ -559,7 +559,7 @@ EOD;
         return $result;
     }
 
-    function getMJDDeviceIdByMacAddress($device)
+    function getDeviceIdByMacAddress($device)
     {
         $result = $this->getDeviceIdByField('MAC', $device->deviceId, $device);
         return $result;
