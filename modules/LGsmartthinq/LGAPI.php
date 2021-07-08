@@ -693,7 +693,7 @@ class LGAPI
         $result = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         debmes($result, 'lgsmarthinq');
         $this->workId[$device_id] = $result->workId;
-        return $result->workId;
+        return $result;
     }
 
     function get_device_work_id($device_id)

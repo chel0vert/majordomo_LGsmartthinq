@@ -182,6 +182,10 @@ class LGsmartthinq extends module
             if ($this->view_mode == '' || $this->view_mode == 'search_lgsmarthinq_devices') {
                 $this->search_lgsmarthinq_devices($out);
             }
+            if ($this->view_mode == '' || $this->view_mode == 'add_lgsmarthinq_devices') {
+                $this->add_lgsmarthinq_devices($out);
+                $this->redirect("?view_mode=search_lgsmarthinq_devices");
+            }
             if ($this->view_mode == 'edit_lgsmarthinq_devices') {
                 $this->edit_lgsmarthinq_devices($out, $this->id);
             }
@@ -225,6 +229,10 @@ class LGsmartthinq extends module
         require(DIR_MODULES . $this->name . '/lgsmarthinq_devices_search.inc.php');
     }
 
+    function add_lgsmarthinq_devices(&$out)
+    {
+        require(DIR_MODULES . $this->name . '/lgsmarthinq_devices_add.inc.php');
+    }
     /**
      * lgsmarthinq_devices edit/add
      *
@@ -392,37 +400,31 @@ class LGsmartthinq extends module
             return Null;
         }
         $this->set_tokens_to_api();
-        $result = $this->api->set_devices();
-        if (!$result) {
+        $devices = $this->getMJDDevices();
+        if (!$devices) {
             return Null;
         } else {
-            $devices = $this->api->get_devices(); # получение устройств с api
             foreach ($devices as $device) {
-                $device_id = $this->getMJDDeviceId($device);
-                if (!$device_id) {
-                    $device_id = $this->addDevice2MJD($device);
-                    if ($device_id) {
-                        debmes("added device: '$device->deviceId' => '$device_id' id in DB ", 'lgsmarthinq');
-                    } else {
-                        debmes("Cannot add device. No deviceId from api: Device:", 'lgsmarthinq');
-                        debmes($device, 'lgsmarthinq');
-                    }
-                }
+                $device_id = $device['ID'];
+                $api_device_id = $device['DEVICE_ID'];
                 if ($device_id) {
-                    foreach ($device as $key => $value) {
-                        $this->set_device_property($device_id, $key, $value);
-                    }
-
-                    if (isset($device) && $device->deviceState != 'D') { # $device->deviceState == 'E' значит включена
-                        $workId = $this->api->monitor_start($device->deviceId);
+                    logger("$device_id");
+                    $mon = $this->api->monitor_start($api_device_id);
+                    $deviceState = $mon->deviceState;
+                    $this->set_device_property($device_id, 'deviceState', $deviceState);
+                    if ($deviceState != 'D') {
                         $try = 0;
-                        $exit_flag = False;
                         $decoded_properties = array();
                         do {
-                            $data = $this->api->monitor_result($device->deviceId);
+                            $data = $this->api->monitor_result($api_device_id);
+                            logger($data);
                             $encoded_properties = $data->returnData;
                             if ($encoded_properties) {
-                                $decoded_properties = $this->api->decode_data($device, $encoded_properties);
+                                $api_device = array(
+                                    'modelJsonUrl' => $this->get_device_property($device_id, 'modelJsonUrl'),
+                                    'deviceType' => $this->get_device_property($device_id, 'deviceType'),
+                                );
+                                $decoded_properties = $this->api->decode_data((object)$api_device, $encoded_properties);
                                 break;
                             }
                             $try = $try + 1;
@@ -430,18 +432,20 @@ class LGsmartthinq extends module
                         } while ($try < 5);
                         if ($decoded_properties) {
                             foreach ($decoded_properties as $key => $value) {
-                                #print_r($key);
-                                #print_r($value);
-                                echo $key . " => " . $value . "\n";
+                                logger($key . " => " . $value);
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }
-                        $this->api->monitor_stop($device->deviceId);
+                        $this->api->monitor_stop($api_device_id);
                     }
-
                 }
             }
         }
+    }
+
+    function getMJDDevices(){
+        $devices = SQLSelect("SELECT * FROM lgsmarthinq_devices");
+        return $devices;
     }
 
     /**

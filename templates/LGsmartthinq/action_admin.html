@@ -72,8 +72,31 @@ Redirected url*:
 </fieldset>
 </form>
 </div>
+
+
  <!-- action usual -->
  [#if DATA_SOURCE="lgsmarthinq_devices" || DATA_SOURCE=""#]
+
+
+<div>
+    [ <a href="#" onClick="$('#search_devices').toggle();return false;">Search Devices</a> ]
+</div>
+<div style="display:none" id='search_devices'>
+    &nbsp;
+    <form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
+        <fieldset>
+            <div class="form-group">
+
+                <div class="form-actions">
+                    <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+                    <input type="hidden" name="view_mode" value="add_lgsmarthinq_devices">
+                    <input type="hidden" name="mode" value="search">
+                    <input type="hidden" name="data_source" value="lgsmarthinq_devices">
+                </div>
+            </div>
+        </fieldset>
+    </form>
+</div>
  <!-- table lgsmarthinq_devices search -->
  [#if VIEW_MODE="search_lgsmarthinq_devices" || VIEW_MODE=""#]
   [#inc lgsmarthinq_devices_search_admin.html#]

@@ -14,8 +14,6 @@ include_once(DIR_MODULES . 'LGsmartthinq/LGAPI.php');
 $LGsmartthinq_module = new LGsmartthinq();
 $module_config = $LGsmartthinq_module->getConfig();
 $redirected_url = $module_config['API_REDIRECTED_URL'];
-$LGsmartthinq_module->config['API_REFRESH_TOKEN'] = '';
-$LGsmartthinq_module->config['API_ACCESS_TOKEN'] = '';
 $api = new LGAPI($module_config['API_COUNTRY'], $module_config['API_LANGUAGE']);
 $api->set_api_property('access_token', $LGsmartthinq_module->config['API_ACCESS_TOKEN']);
 $api->set_api_property('refresh_token', $LGsmartthinq_module->config['API_REFRESH_TOKEN']);
