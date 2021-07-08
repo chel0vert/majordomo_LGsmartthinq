@@ -902,12 +902,7 @@ class LGAPI
 
     function decode_data($device, $data)
     {
-        #debmes($data,'lgsmarthinq');
         $configuration = $this->get_device_configuration($device);
-        #$localization  = $this->get_device_localization($device);
-        #debmes('local', 'lgsmarthinq');
-        #debmes($localization, 'lgsmarthinq');
-        #$locale = $this->country;
         $data = base64_decode($data);
         $params = $configuration->Monitoring->protocol;
         $decoded = array();
@@ -972,9 +967,10 @@ class LGAPI
 
     function get_device_configuration($device)
     {
-        $url = $device->modelJsonUrl;
+        $url = $device->modelJsonUri;
         $type = $device->deviceType;
         $filename = __DIR__ . "/LGAPI_configuration_$type.json";
+        $result = Null;
         if ($url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -990,12 +986,12 @@ class LGAPI
                 #debmes($response, 'lgsmarthinq');
                 $result = json_decode($response);
             }
-        } else {
-            if (file_exists($filename)) {
-                $content = file_get_contents($filename);
-                if ($content) {
-                    $result = json_decode($content);
-                }
+        }
+
+        if (!$result && file_exists($filename)) {
+            $content = file_get_contents($filename);
+            if ($content) {
+                $result = json_decode($content);
             }
         }
 

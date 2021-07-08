@@ -233,6 +233,7 @@ class LGsmartthinq extends module
     {
         require(DIR_MODULES . $this->name . '/lgsmarthinq_devices_add.inc.php');
     }
+
     /**
      * lgsmarthinq_devices edit/add
      *
@@ -343,18 +344,11 @@ class LGsmartthinq extends module
 
     function getDeviceByID($device_id)
     {
-        $fields = array(
-            deviceId => Null,
-            modelJsonUrl => Null,
-            deviceType => Null,
-            langPackModelUri => Null,
-            langPackProductTypeUri => Null,
-            Course => Null,
-        );
         $device = new stdClass;
-        foreach ($fields as $property => $value) {
-            $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID = $device_id AND TITLE = '$property'");
-            $device->$property = $values['VALUE'];
+        $items = SQLSelect("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID = $device_id");
+        foreach ($items as $item) {
+            $property = $item['TITLE'];
+            $device->$property = $item['VALUE'];
         }
         return $device;
     }
@@ -404,11 +398,11 @@ class LGsmartthinq extends module
         if (!$devices) {
             return Null;
         } else {
-            foreach ($devices as $device) {
-                $device_id = $device['ID'];
-                $api_device_id = $device['DEVICE_ID'];
+            foreach ($devices as $mjd_device) {
+                $device_id = $mjd_device['ID'];
+                $api_device_id = $mjd_device['DEVICE_ID'];
                 if ($device_id) {
-                    logger("$device_id");
+                    $device = $this->getDeviceByID($device_id);
                     $mon = $this->api->monitor_start($api_device_id);
                     $deviceState = $mon->deviceState;
                     $this->set_device_property($device_id, 'deviceState', $deviceState);
@@ -417,14 +411,10 @@ class LGsmartthinq extends module
                         $decoded_properties = array();
                         do {
                             $data = $this->api->monitor_result($api_device_id);
-                            logger($data);
+                            #logger($data);
                             $encoded_properties = $data->returnData;
                             if ($encoded_properties) {
-                                $api_device = array(
-                                    'modelJsonUrl' => $this->get_device_property($device_id, 'modelJsonUrl'),
-                                    'deviceType' => $this->get_device_property($device_id, 'deviceType'),
-                                );
-                                $decoded_properties = $this->api->decode_data((object)$api_device, $encoded_properties);
+                                $decoded_properties = $this->api->decode_data($device, $encoded_properties);
                                 break;
                             }
                             $try = $try + 1;
@@ -443,7 +433,8 @@ class LGsmartthinq extends module
         }
     }
 
-    function getMJDDevices(){
+    function getMJDDevices()
+    {
         $devices = SQLSelect("SELECT * FROM lgsmarthinq_devices");
         return $devices;
     }
@@ -609,7 +600,8 @@ EOD;
         return $id;
     }
 
-    function getDeviceImage ($device){
+    function getDeviceImage($device)
+    {
         $type = $device->deviceType;
         $url = $this->device_types2image[$type];
         return $url;
