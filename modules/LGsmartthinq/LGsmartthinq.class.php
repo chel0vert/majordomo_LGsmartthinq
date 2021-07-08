@@ -405,6 +405,7 @@ class LGsmartthinq extends module
                     $device = $this->getDeviceByID($device_id);
                     $mon = $this->api->monitor_start($api_device_id);
                     $deviceState = $mon->deviceState;
+                    #logger($deviceState);
                     $this->set_device_property($device_id, 'deviceState', $deviceState);
                     if ($deviceState != 'D') {
                         $try = 0;
@@ -422,7 +423,7 @@ class LGsmartthinq extends module
                         } while ($try < 5);
                         if ($decoded_properties) {
                             foreach ($decoded_properties as $key => $value) {
-                                logger($key . " => " . $value);
+                                #logger($key . " => " . $value);
                                 $this->set_device_property($device_id, $key, $value);
                             }
                         }

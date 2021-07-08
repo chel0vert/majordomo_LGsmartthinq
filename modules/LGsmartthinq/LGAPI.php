@@ -74,9 +74,9 @@ class LGAPI
 
             $headers = $this->headers($add_headers);
 
-            debmes($url, 'lgsmarthinq');
-            debmes($headers, 'lgsmarthinq');
-            debmes($json_request, 'lgsmarthinq');
+            #debmes($url, 'lgsmarthinq');
+            #debmes($headers, 'lgsmarthinq');
+            #debmes($json_request, 'lgsmarthinq');
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -96,7 +96,7 @@ class LGAPI
             #echo "\n";
             $result = json_decode($response);
             #debmes($url, 'lgsmarthinq');
-            debmes($result, 'lgsmarthinq');
+            #debmes($result, 'lgsmarthinq');
             if (!$data_root) {
                 $data_root = $this->DATA_ROOT;
             }
@@ -691,7 +691,7 @@ class LGAPI
             'workId' => $this->gen_uuid(),
         );
         $result = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
-        debmes($result, 'lgsmarthinq');
+        #debmes($result, 'lgsmarthinq');
         $this->workId[$device_id] = $result->workId;
         return $result;
     }

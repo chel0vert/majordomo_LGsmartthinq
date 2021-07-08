@@ -1,7 +1,7 @@
 
 <!-- table zwave_devices search -->
 <div>
- [ <a href="#" onClick="$('#api_settings').toggle();return false;"><#LANG_SETUP#></a> ]
+ <a style="float:left; margin: 10px" class="btn btn-primary" href="#" onClick="$('#api_settings').toggle();return false;"><#LANG_SETUP#></a>
 </div>
 <div style="display:none" id='api_settings'>
 &nbsp;
@@ -65,7 +65,7 @@ Redirected url*:
         </label>
     </div>
 <div class="form-actions">
-<button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+<button type="submit" name="subm" value="Submit" class="btn btn-primary">Обновить настройки API</button>
 <input type="hidden" name="view_mode" value="update_settings">
 <input type="hidden" name="mode" value="update">
 </div>
@@ -77,18 +77,17 @@ Redirected url*:
  <!-- action usual -->
  [#if DATA_SOURCE="lgsmarthinq_devices" || DATA_SOURCE=""#]
 
-
+<!--
 <div>
-    [ <a href="#" onClick="$('#search_devices').toggle();return false;">Search Devices</a> ]
-</div>
-<div style="display:none" id='search_devices'>
-    &nbsp;
-    <form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form-horizontal">
+    [ <a href="#" onClick="$('#search_devices').toggle();return false;">Получить устройства с API</a> ]
+</div>-->
+<div style="float:left; margin: 10px" id='search_devices'>
+    <form action="?" method="post" enctype="multipart/form-data" name="frmEdit" >
         <fieldset>
             <div class="form-group">
 
                 <div class="form-actions">
-                    <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+                    <button type="submit" name="subm" value="Submit" class="btn btn-primary">Обновить Устройства</button>
                     <input type="hidden" name="view_mode" value="add_lgsmarthinq_devices">
                     <input type="hidden" name="mode" value="search">
                     <input type="hidden" name="data_source" value="lgsmarthinq_devices">
