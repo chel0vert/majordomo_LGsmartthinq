@@ -121,7 +121,7 @@ class LGAPI
                 $this->set_api_error(Null); # unset error
             } else if ($code == '0106') {
                 $success = true;
-                debmes('Is not connected','lgsmarthinq');
+                #debmes('Is not connected','lgsmarthinq');
                 $this->set_api_error(Null); # unset error
             } else {
                 $this->set_api_error($response);

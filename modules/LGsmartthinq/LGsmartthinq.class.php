@@ -406,6 +406,7 @@ class LGsmartthinq extends module
                     $mon = $this->api->monitor_start($api_device_id);
                     $deviceState = $mon->deviceState;
                     #logger($deviceState);
+                    $this->updateMJDDevice($mjd_device);
                     $this->set_device_property($device_id, 'deviceState', $deviceState);
                     if ($deviceState != 'D') {
                         $try = 0;
@@ -432,6 +433,12 @@ class LGsmartthinq extends module
                 }
             }
         }
+    }
+
+    function updateMJDDevice($mjd_device){
+        $mjd_device['UPDATED'] = date('Y-m-d H:i:s');
+        SQLUpdate('lgsmarthinq_devices', $mjd_device);
+        return $mjd_device;
     }
 
     function getMJDDevices()
@@ -578,8 +585,7 @@ EOD;
         }
         if (isset($values)) {
             $values['DEVICE_ID'] = $device->deviceId;
-            $values['UPDATED'] = date('Y-m-d H:i:s');
-            SQLUpdate('lgsmarthinq_devices', $values);
+            $this->updateMJDDevice($values);
             $result = $values['ID'];
         }
         return $result;
