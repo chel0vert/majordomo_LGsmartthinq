@@ -395,6 +395,7 @@ class LGsmartthinq extends module
         } else {
             $devices = $this->api->get_devices(); # получение устройств с api
             foreach ($devices as $device) {
+				//print_r($device);
                 $device_id = $this->getMJDDeviceId($device);
                 if (!$device_id) {
                     $device_id = $this->addDevice2MJD($device);
@@ -407,7 +408,15 @@ class LGsmartthinq extends module
                 }
                 if ($device_id) {
                     foreach ($device as $key => $value) {
-                        $this->set_device_property($device_id, $key, $value);
+						$data = json_decode(json_encode($value), true);
+						//print_r($data);
+						if(isset($data['washerDryer'])){
+							//print_r($data);
+							foreach ($data['washerDryer'] as $key1 => $value1){
+								$this->set_device_property($device_id, $key1, $value1);
+							}
+						}
+                        else $this->set_device_property($device_id, $key, $value);
                     }
 
                     if (isset($device) && $device->deviceState != 'D') { # $device->deviceState == 'E' значит включена
@@ -427,8 +436,8 @@ class LGsmartthinq extends module
                         } while ($try < 5);
                         if ($decoded_properties) {
                             foreach ($decoded_properties as $key => $value) {
-                                #print_r($key);
-                                #print_r($value);
+                                //print_r($key);
+                                //print_r($value);
                                 echo $key . " => " . $value . "\n";
                                 $this->set_device_property($device_id, $key, $value);
                             }
@@ -500,7 +509,7 @@ class LGsmartthinq extends module
  lgsmarthinq_devices: UPDATED datetime
  lgsmarthinq_values: ID int(10) unsigned NOT NULL auto_increment
  lgsmarthinq_values: TITLE varchar(100) NOT NULL DEFAULT ''
- lgsmarthinq_values: VALUE varchar(255) NOT NULL DEFAULT ''
+ lgsmarthinq_values: VALUE varchar(255) DEFAULT ''
  lgsmarthinq_values: DEVICE_ID int(10) NOT NULL DEFAULT '0'
  lgsmarthinq_values: LINKED_OBJECT varchar(100) NOT NULL DEFAULT ''
  lgsmarthinq_values: LINKED_PROPERTY varchar(100) NOT NULL DEFAULT ''
@@ -611,23 +620,41 @@ EOD;
 
     function set_device_property($id, $property, $value)
     {
+
         if (!$id || !$property || is_object($value) || !is_string($property)) {
             return Null;
         } else if (is_array($value)) {
-            $value = json_encode($value);
+
+			$value = json_encode($value);
         }
         $values = SQLSelectOne("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID='$id' and TITLE='$property'");
+
         $device_values = SQLSelectOne("SELECT * FROM lgsmarthinq_devices WHERE ID='$id'");
         $device_linked_object = $device_values['LINKED_OBJECT'];
         if (isset($values) && isset($values['ID'])) {
-            $values['VALUE'] = $value;
-            if (!$values['LINKED_PROPERTY']) {
-                $values['LINKED_PROPERTY'] = $property;
-            }
-            if (!$values['LINKED_OBJECT']) {
-                $values['LINKED_OBJECT'] = $device_linked_object;
-            }
-            SQLUpdate('lgsmarthinq_values', $values);
+			if (!$values['LINKED_PROPERTY']) {
+				$values['LINKED_PROPERTY'] = $property;
+			}
+			if (!$values['LINKED_OBJECT']) {
+				$values['LINKED_OBJECT'] = $device_linked_object;
+			}
+			if($values['VALUE']!= $value){
+				$linked_object = $values['LINKED_OBJECT'];
+				if (!$linked_object) {
+					$linked_object = $device_linked_object;
+				}
+				if (isset($linked_object)) {
+					sg("$linked_object.$property", $value);
+					$linked_method = $values['LINKED_METHOD'];
+					if (isset($linked_method)) {
+						$params['VALUE'] = $value;
+						$params['OLD_VALUE'] = $values['VALUE'];
+						callMethodSafe("$linked_object.$linked_method", $params);
+					}
+				}
+				$values['VALUE'] = isset($values['VALUE'])? $value:0;
+				SQLUpdate('lgsmarthinq_values', $values);
+			}
         } else {
             $values = array(
                 'TITLE' => $property,
@@ -639,20 +666,7 @@ EOD;
             #debmes("insert device id($id) property $property => $value", 'lgsmarthinq');
             SQLInsert('lgsmarthinq_values', $values);
         }
-
-        $linked_object = $values['LINKED_OBJECT'];
-        if (!$linked_object) {
-            $linked_object = $device_linked_object;
-        }
-
-        if (isset($linked_object)) {
-            sg("$linked_object.$property", $value);
-            $linked_method = $values['LINKED_METHOD'];
-            if (isset($linked_method)) {
-                callMethodSafe("$linked_object.$linked_method");
-            }
-        }
-
+		
         return $values;
     }
 

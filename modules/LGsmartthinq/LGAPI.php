@@ -69,7 +69,7 @@ class LGAPI
         $result = Null;
 
         $json_request = $this->generate_json_request($data, $data_root);
-        debmes($json_request);
+        //debmes($json_request);
         do {
 
             $headers = $this->headers($add_headers);
@@ -537,6 +537,7 @@ class LGAPI
                 $url = $this->api_root . "/service/homes/" . $homeId;
                 $data = array();
                 $result = $this->lgedm_get($url, $data);
+				//print_r( $result);
                 if ($result && count($result->devices) > 0) {
                     $home_devices = $this->get_items($result);
                     $devices = array_merge($devices, $home_devices);
@@ -646,7 +647,7 @@ class LGAPI
         $message_bytes = utf8_encode($message);
         $result = hash_hmac('sha1', $message_bytes, $secret_bytes, true);
         $result = base64_encode($result);
-        debmes($result);
+        debmes($result, 'lgsmarthinq');
         return $result;
     }
 
@@ -761,8 +762,8 @@ class LGAPI
         );
 
         $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
-        #print_r($response);
-        #echo "\n";
+        //print_r($response);
+        //echo "\n";
         $code = $response->returnCd;
         $result = Null;
         if ($code == '0000') {
