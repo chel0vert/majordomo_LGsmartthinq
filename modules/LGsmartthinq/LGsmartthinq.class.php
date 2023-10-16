@@ -395,7 +395,7 @@ class LGsmartthinq extends module
         } else {
             $devices = $this->api->get_devices(); # получение устройств с api
             foreach ($devices as $device) {
-				//print_r($device);
+				//debmes($device, 'lgsmarthinq');
                 $device_id = $this->getMJDDeviceId($device);
                 if (!$device_id) {
                     $device_id = $this->addDevice2MJD($device);
@@ -408,21 +408,23 @@ class LGsmartthinq extends module
                 }
                 if ($device_id) {
 					$values = SQLSelect("SELECT * FROM lgsmarthinq_values WHERE DEVICE_ID='$device_id'");
-					foreach($values as $val){
-						$prop[$val['TITLE']] = $val;
-					}
-                    foreach ($device as $key => $value) {
-						$data = json_decode(json_encode($value), true);
-						//print_r($data);
-						if(isset($data['washerDryer'])){
-							//print_r($data);
-							foreach ($data['washerDryer'] as $key1 => $value1){
-								$this->set_device_property($device_id, $key1, $value1, $prop);
-							}
-						}
-                        else $this->set_device_property($device_id, $key, $value, $prop);
+					//debmes($values, 'lgsmarthinq');
+                    foreach($values as $val){
+                        $prop[$val['TITLE']] = $val;
                     }
-
+                    $snapshot = $device->snapshot;
+                    $prop_to_update = array();
+                    foreach ($device as $key => $value) {
+                        $prop_to_update[$key] = $value;
+                    }
+                    if (isset($snapshot)) {
+                        $washer_dryer_snapshot = $snapshot->washerDryer;
+                        if(isset($washer_dryer_snapshot)){
+                            foreach ($washer_dryer_snapshot as $key => $value){
+                                $prop_to_update[$key] = $value;
+                            }
+                        }
+                    }
                     if (isset($device) && $device->deviceState != 'D') { # $device->deviceState == 'E' значит включена
                         $workId = $this->api->monitor_start($device->deviceId);
                         $try = 0;
@@ -442,11 +444,16 @@ class LGsmartthinq extends module
                             foreach ($decoded_properties as $key => $value) {
                                 //print_r($key);
                                 //print_r($value);
-                                echo $key . " => " . $value . "\n";
-                                $this->set_device_property($device_id, $key, $value, $prop);
+                                //echo $key . " => " . $value . "\n";
+                                //debmes($key . " => " . $value, 'lgsmarthinq');
+                                $prop_to_update[$key] = $value;
                             }
                         }
                         $this->api->monitor_stop($device->deviceId);
+                    }
+                    foreach ($prop_to_update as $key => $value) {
+                        //debmes($key.' => '.$value, 'lgsmarthinq');
+                        $this->set_device_property($device_id, $key, $value, $prop);
                     }
 
                 }
@@ -622,7 +629,7 @@ EOD;
         return $result;
     }
 
-    function set_device_property($id, $property, $value, $values="")
+    function set_device_property($id, $property, $value, $prop="")
     {
 
         if (!$id || !$property || is_object($value) || !is_string($property)) {
@@ -632,8 +639,8 @@ EOD;
 			$value = json_encode($value);
         }
             
-        if (isset($values[$property]) && isset($values[$property]['ID'])) {
-			$values = $values[$property];
+        if (isset($prop[$property]) && isset($prop[$property]['ID'])) {
+			$values = $prop[$property];
 			//if (!$values['LINKED_PROPERTY']) {
 			//	$values['LINKED_PROPERTY'] = $property;
 			//}
