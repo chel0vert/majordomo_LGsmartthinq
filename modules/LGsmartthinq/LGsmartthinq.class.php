@@ -40,19 +40,19 @@ class LGsmartthinq extends module
     function saveParams($data = 1)
     {
         $p = array();
-        if (IsSet($this->id)) {
+        if (isset($this->id)) {
             $p["id"] = $this->id;
         }
-        if (IsSet($this->view_mode)) {
+        if (isset($this->view_mode)) {
             $p["view_mode"] = $this->view_mode;
         }
-        if (IsSet($this->edit_mode)) {
+        if (isset($this->edit_mode)) {
             $p["edit_mode"] = $this->edit_mode;
         }
-        if (IsSet($this->data_source)) {
+        if (isset($this->data_source)) {
             $p["data_source"] = $this->data_source;
         }
-        if (IsSet($this->tab)) {
+        if (isset($this->tab)) {
             $p["tab"] = $this->tab;
         }
         return parent::saveParams($p);
@@ -432,8 +432,8 @@ class LGsmartthinq extends module
                         $decoded_properties = array();
                         do {
                             $data = $this->api->monitor_result($device->deviceId);
-                            $encoded_properties = $data->returnData;
-                            if ($encoded_properties) {
+                            $encoded_properties = isset($data->returnData) ? $data->returnData : '';
+                            if ($encoded_properties != '') {
                                 $decoded_properties = $this->api->decode_data($device, $encoded_properties);
                                 break;
                             }

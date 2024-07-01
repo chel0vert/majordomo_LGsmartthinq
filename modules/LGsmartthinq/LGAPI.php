@@ -2,7 +2,7 @@
 
 class LGAPI
 {
-
+	private $log = false;
     private $access_token;
     private $redirected_url;
     private $oauth2_backend_url;
@@ -37,10 +37,10 @@ class LGAPI
 
     function __construct($country, $language, $redirected_url=Null)
     {
-        $this->country = $country;        #[require]
-        $this->language = $language;       #[require]
+        $this->country = $country;        //#[require]
+        $this->language = $language;       //#[require]
         if ($redirected_url) {
-            $this->redirected_url = $redirected_url; #[require]
+            $this->redirected_url = $redirected_url; //#[require]
             $this->parse_redirected_url($redirected_url);
             $this->login();
         }
@@ -52,11 +52,11 @@ class LGAPI
         $result = array();
         foreach ($key_value as $item) {
             $array = explode("=", $item);
-            $result[$array[0]] = $array[1];
+            $result[$array[0]] = isset($array[1]) ? $array[1] : '';
         }
-        $this->set_api_property('user_number', $result['user_number']);
-        $this->set_api_property('oauth_code', $result['code']);
-        $this->set_api_property('oauth2_backend_url', urldecode($result['oauth2_backend_url']));
+        $this->set_api_property('user_number', isset($result['user_number']) ? $result['user_number'] : '');
+        $this->set_api_property('oauth_code', isset($result['code']) ? $result['code'] : '');
+        $this->set_api_property('oauth2_backend_url', urldecode(isset($result['oauth2_backend_url']) ? $result['code'] : ''));
         return $result;
     }
 
@@ -69,14 +69,14 @@ class LGAPI
         $result = Null;
 
         $json_request = $this->generate_json_request($data, $data_root);
-        //debmes($json_request);
+        //$this->lglog($json_request);
         do {
 
             $headers = $this->headers($add_headers);
 
-            debmes($url, 'lgsmarthinq');
-            debmes($headers, 'lgsmarthinq');
-            debmes($json_request, 'lgsmarthinq');
+            $this->lglog($url);
+            $this->lglog($headers);
+            $this->lglog($json_request);
             #echo "\n";
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -95,23 +95,22 @@ class LGAPI
             #print_r($response);
             #echo "\n";
             $result = json_decode($response);
-            #debmes($url, 'lgsmarthinq');
-            debmes($result, 'lgsmarthinq');
+            #$this->lglog($url);
+            $this->lglog($result);
             if (!$data_root) {
                 $data_root = $this->DATA_ROOT;
             }
-            $code = $result->resultCode;
-            if (!$code){
+			if (isset($result->resultCode)){
                 $code = $result->$data_root->returnCd;
-            }
+            }else $code = '';
             #echo $code;
             if ($code == "0102" || $code == "9003" ) {
                 if ($code == '9003') {
-                    debmes("Session creation failure", 'lgsmarthinq');
+                    $this->lglog("Session creation failure");
                 } else {
-                    debmes($json_request, 'lgsmarthinq');
-                    debmes($response, 'lgsmarthinq');
-                    debmes($result->$data_root->returnMsg, 'lgsmarthinq');
+                    $this->lglog($json_request);
+                    $this->lglog($response);
+                    $this->lglog($result->$data_root->returnMsg);
                 }
                 $this->update_access_token();
                 #$this->login();
@@ -121,13 +120,13 @@ class LGAPI
                 $this->set_api_error(Null); # unset error
             } else if ($code == '0106') {
                 $success = true;
-                debmes('Is not connected','lgsmarthinq');
+                $this->lglog('Is not connected');
                 $this->set_api_error(Null); # unset error
             } else {
                 $this->set_api_error($response);
-                debmes("url: $url", 'lgsmarthinq');
-                debmes("Error response: $response", 'lgsmarthinq');
-                debmes("Do request againg. Try: $try", 'lgsmarthinq');
+                $this->lglog("url: $url");
+                $this->lglog("Error response: $response");
+                $this->lglog("Do request againg. Try: $try");
                 #echo $response;
                 #echo "\n";
             }
@@ -149,9 +148,9 @@ class LGAPI
 
             $headers = $this->headers($add_headers);
 
-            #debmes($headers, 'lgsmarthinq');
-            #debmes($url, 'lgsmarthinq');
-            #debmes($json_request, 'lgsmarthinq');
+            #$this->lglog($headers);
+            #$this->lglog($url);
+            #$this->lglog($json_request);
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -169,17 +168,17 @@ class LGAPI
             #print_r($response);
             #echo "\n";
             $result = json_decode($response);
-            #debmes($url, 'lgsmarthinq');
-            #debmes($result, 'lgsmarthinq');
+            #$this->lglog($url);
+            #$this->lglog($result);
             $data_root = $this->DATA_ROOT;
             $code = $result->resultCode;
             if ($code == "0102" || $code == "9003") {
                 if ($code == '9003') {
-                    debmes("Session creation failure", 'lgsmarthinq');
+                    $this->lglog("Session creation failure");
                 } else {
-                    debmes($json_request, 'lgsmarthinq');
-                    debmes($response, 'lgsmarthinq');
-                    debmes($result->$data_root->returnMsg, 'lgsmarthinq');
+                    $this->lglog($json_request);
+                    $this->lglog($response);
+                    $this->lglog($result->$data_root->returnMsg);
                 }
                 $this->update_access_token();
                 $this->login();
@@ -189,9 +188,9 @@ class LGAPI
                 $this->set_api_error(Null); # unset error
             } else {
                 $this->set_api_error($response);
-                debmes("url: $url", 'lgsmarthinq');
-                debmes("Error response: $response", 'lgsmarthinq');
-                debmes("Do request againg. Try: $try", 'lgsmarthinq');
+                $this->lglog("url: $url");
+                $this->lglog("Error response: $response");
+                $this->lglog("Do request againg. Try: $try");
                 #echo $response;
                 #echo "\n";
             }
@@ -222,12 +221,12 @@ class LGAPI
             array_push($result, $headers);
         }
         if (isset($this->access_token)) {
-            #debmes($this->access_token, 'lgsmarthinq');
+            #$this->lglog($this->access_token);
             array_push($result, 'x-emp-token: ' . $this->access_token);
         }
 
         if (isset($this->user_number)) {
-            #debmes($this->session_id, 'lgsmarthinq');
+            #$this->lglog($this->session_id);
             array_push($result, 'x-user-no: ' . $this->user_number);
         }
         return $result;
@@ -241,7 +240,7 @@ class LGAPI
             $access_token = $this->get_new_access_token($refresh_token);
             $this->set_access_token($access_token);
         } else {
-            debmes('No refresh token', 'lgsmarthinq');
+            $this->lglog('No refresh token');
             echo "No refresh token\n";
         }
         return $this->get_access_token();
@@ -275,7 +274,7 @@ class LGAPI
     function check_gateway()
     {
         if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth2_backend_url)) {
-            #debmes("Set GateWays", 'lgsmarthinq');
+            #$this->lglog("Set GateWays"');
             $this->set_gateway();
         }
     }
@@ -396,7 +395,7 @@ class LGAPI
 
         if (!$this->oauth2_backend_url) {
             $values = $this->parse_redirected_url($this->redirected_url);
-            $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
+            $this->oauth2_backend_url = urldecode(isset($values['oauth2_backend_url']) ? $values['oauth2_backend_url'] : '');
         }
 
         $url = $this->oauth2_backend_url . "oauth/1.0/oauth2/token";
@@ -426,9 +425,9 @@ class LGAPI
         $response = curl_exec($ch);
         curl_close($ch);
         $json = json_decode($response);
-        if (!$json->access_token || !$json->refresh_token) {
+        if (!isset($json->access_token) || !isset($json->refresh_token)) {
             $message = "Can not get new access token. Please add new redirected url\n$response";
-            debmes($message, 'lgsmarthinq');
+            $this->lglog($message);
             echo "$message\n";
         } else {
             $this->set_api_property('access_token', $json->access_token);
@@ -440,7 +439,7 @@ class LGAPI
     function get_new_access_token($refresh_token = Null)
     {
         if (!$refresh_token) {
-            debmes('Can not get access token: No refresh token', 'lgsmarthinq');
+            $this->lglog('Can not get access token: No refresh token');
             echo "Can not get access token: No refresh token\n";
             return Null;
         }
@@ -452,7 +451,7 @@ class LGAPI
         }
 
         $url = $this->oauth2_backend_url . "/oauth/1.0/oauth2/token";
-        debmes($url, 'lgsmarthinq');
+        $this->lglog($url);
 
         $headers = array(
             'Accept: application/json',
@@ -474,29 +473,28 @@ class LGAPI
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
         #print_r($response);
-        #debmes($response, 'lgsmarthinq');
+        #$this->lglog($response);
         curl_close($ch);
         $json = json_decode($response);
-        debmes($json, 'lgsmarthinq');
-        if ($json->error) {
-            debmes("Can not get access token: \n" .
+        $this->lglog($json);
+        if (isset($json->error)) {
+            $this->lglog("Can not get access token: \n" .
                 "headers:\n" . print_r($headers, 1) .
                 "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n" .
-                "\nresponse:\n" . $response,
-                'lgsmarthinq');
+                "\nresponse:\n" . $response);
         }
         $result = $json->access_token;
         if ( $result ) {
             $this->set_api_property('access_token', $result);
         }
-        debmes($result, 'lgsmarthinq');
+        $this->lglog($result);
         return $result;
     }
 
     function oauth2_datetime()
     {
         $result = date($this->DATE_FORMAT, time() - date("Z"));
-        #debmes("Date:".$result,'lgsmarthinq');
+        #$this->lglog("Date:".$result);
         return $result;
     }
 
@@ -557,10 +555,10 @@ class LGAPI
         $url = $this->api_root . "/service/homes";
         $data = array();
         $result = $this->lgedm_get($url, $data);
-        $homes = $result->item;
+		$homes = isset($result->item) ? $result->item : '';
         if (!is_array($homes)) {
             $homes = Null;
-            debmes("No homes found", 'lgsmarthinq');
+            $this->lglog("No homes found");
         }
         return $homes;
     }
@@ -571,7 +569,7 @@ class LGAPI
 /*
     function get_user_number(){
         $url = $this->oauth2_backend_url . "/users/profile";
-        debmes($url, 'lgsmarthinq');
+        $this->lglog($url);
 
         $access_token = $this->get_access_token();
         $headers = array(
@@ -615,7 +613,7 @@ class LGAPI
             'Pragma: no-cache',
             'Cache-Control: no-cache',
         );
-        debmes($headers, 'lgsmarthinq');
+        $this->lglog($headers);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -624,20 +622,19 @@ class LGAPI
         #curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         #curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
-        #debmes($response, 'lgsmarthinq');
+        #$this->lglog($response);
         curl_close($ch);
         $json = json_decode($response);
-        debmes($json, 'lgsmarthinq');
+        $this->lglog($json);
         if ($json->error) {
-            debmes("Can not get access token: \n" .
+            $this->lglog("Can not get access token: \n" .
                 "headers:\n" . print_r($headers, 1) .
                 "\nParams: \"grant_type=refresh_token&refresh_token=$refresh_token\"\n" .
-                "\nresponse:\n" . $response,
-                'lgsmarthinq');
+                "\nresponse:\n" . $response);
         }
         $result = $json->access_token;
-        debmes($result, 'lgsmarthinq');
-        debmes($result);
+        $this->lglog($result);
+        $this->lglog($result);
     }
 */
     function signature($url, $date){
@@ -647,7 +644,7 @@ class LGAPI
         $message_bytes = utf8_encode($message);
         $result = hash_hmac('sha1', $message_bytes, $secret_bytes, true);
         $result = base64_encode($result);
-        debmes($result, 'lgsmarthinq');
+        $this->lglog($result);
         return $result;
     }
 
@@ -655,7 +652,7 @@ class LGAPI
     function set_api_property($property, $value)
     {
         $this->$property = $value;
-        #debmes("SEt api property '$property' => ".$this->$property, 'lgsmarthinq');
+        #$this->lglog("SEt api property '$property' => ".$this->$property);
     }
 
     function gen_uuid()
@@ -692,9 +689,9 @@ class LGAPI
             'workId' => $this->gen_uuid(),
         );
         $result = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
-        debmes($result, 'lgsmarthinq');
-        $this->workId[$device_id] = $result->workId;
-        return $result->workId;
+        $this->lglog($result);
+        $this->workId[$device_id] = isset($result->workId) ? $result->workId : '';
+        return $this->workId[$device_id];
     }
 
     function get_device_work_id($device_id)
@@ -721,7 +718,8 @@ class LGAPI
         $response = $this->lgedm_post($url, $data,Null, 'lgedmRoot');
         $code = $response->returnCd;
         $result = Null;
-        if ($code == '0000' && $response->workList) {
+		$workList = isset($response->workList) ? $response->workList : '';
+        if ($code == '0000' && $workList != '') {
             $result = $response->workList;
         }
         return $result;
@@ -795,7 +793,7 @@ class LGAPI
 
         if ($device->Programm) {
             $send_data = $this->make_start_programm($device, $device->Programm, $params);
-            #debmes("Data: ".$send_data,'lgsmarthinq');
+            #$this->lglog("Data: ".$send_data);
             $data['data'] = $send_data;
         }
 
@@ -821,7 +819,7 @@ class LGAPI
             $result = $this->send_command($device, $category, $command, $value, $params);
             $this->monitor_stop($device->deviceId);
         } else {
-            debmes('Can not start monitor', 'lgsmarthinq');
+            $this->lglog('Can not start monitor');
         }
         return $result;
     }
@@ -841,7 +839,7 @@ class LGAPI
         if ($code == '0000') {
             $result = $response;
         }
-        #debmes($response, 'lgsmarthinq');
+        #$this->lglog($response);
         return $result;
     }
 
@@ -871,14 +869,14 @@ class LGAPI
             'selectedCd' => $device->Course,
         );
 
-        #debmes($data, 'lgsmarthinq');
+        #$this->lglog($data);
         $response = $this->lgedm_post($url, $data, Null, 'lgedmRoot');
         $code = $response->returnCd;
         $result = Null;
         if ($code == '0000') {
             $result = $response;
         }
-        #debmes($response, 'lgsmarthinq');
+        #$this->lglog($response);
         return $data;
     }
 
@@ -894,20 +892,20 @@ class LGAPI
             $DESCRIPTION = $xml->addChild('DESCRIPTION', '');
             $DESCRIPTION->addChild('EN', 'Custom programm');
             $result = $xml->asXML();
-            #debmes($result, 'lgsmarthinq');
+            #$this->lglog($result);
         } else {
-            debmes('can not create custom programm', 'lgsmarthinq');
+            $this->lglog('can not create custom programm');
         }
         return base64_encode($result);
     }
 
     function decode_data($device, $data)
     {
-        #debmes($data,'lgsmarthinq');
+        #$this->lglog($data);
         $configuration = $this->get_device_configuration($device);
         #$localization  = $this->get_device_localization($device);
-        #debmes('local', 'lgsmarthinq');
-        #debmes($localization, 'lgsmarthinq');
+        #$this->lglog('local');
+        #$this->lglog($localization);
         #$locale = $this->country;
         $data = base64_decode($data);
         $params = $configuration->Monitoring->protocol;
@@ -966,7 +964,7 @@ class LGAPI
                 #$result[$key."_ID"] = $id;
             }
         }
-        #debmes($result, 'lgsmarthinq');
+        #$this->lglog($result);
         return $result;
     }
 
@@ -988,7 +986,7 @@ class LGAPI
             if ($response) {
                 $response = preg_replace('/^\x{feff}/u', '', $response);
                 file_put_contents($filename, $response);
-                #debmes($response, 'lgsmarthinq');
+                #$this->lglog($response);
                 $result = json_decode($response);
             }
         } else {
@@ -1016,7 +1014,7 @@ class LGAPI
         }
 
         $url = $device->langPackProductTypeUri;
-        #debmes("lang url $url", 'lgsmarthinq');
+        #$this->lglog("lang url $url");
         if (!$result && $url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
@@ -1045,11 +1043,11 @@ class LGAPI
                 }
                 $content = json_encode($result);
                 file_put_contents($filename, $content);
-                #debmes($response, 'lgsmarthinq');
+                #$this->lglog($response);
 
             }
         }
-        #debmes($result->pack->"@WM_TITAN2_OPTION_ECO_HYBRID_W", 'lgsmarthinq');
+        #$this->lglog($result->pack->"@WM_TITAN2_OPTION_ECO_HYBRID_W");
         return $result;
     }
 
@@ -1067,9 +1065,9 @@ class LGAPI
     { #course=program
         $config = $this->get_device_configuration($device);
         $template = $config->ControlWifi->action->OperationStart->data;
-        #debmes("make_programm: template = $template", 'lgsmarthinq');
-        #debmes("make_programm: config", 'lgsmarthinq');
-        #debmes($config, 'lgsmarthinq');
+        #$this->lglog("make_programm: template = $template");
+        #$this->lglog("make_programm: config");
+        #$this->lglog($config);
         $course_config = $config->Course->$course;
         if (!$course_config) {
             $course_config = $config->SmartCourse->$course;
@@ -1080,7 +1078,7 @@ class LGAPI
                 $result = $this->pack_course($device, $params);
             } else {
                 $course_name = $course_config->name;
-                #debmes("make_programm: Course name = $course_name", 'lgsmarthinq');
+                #$this->lglog("make_programm: Course name = $course_name");
                 $items = $course_config->function;
                 $params = array();
                 foreach ($items as $item) {
@@ -1091,10 +1089,10 @@ class LGAPI
                 $params['Course'] = $course;
                 $params['Option2'] = 3;
                 $result = $this->pack_course($device, $params);
-                #debmes($result, 'lgsmarthinq');
+                #$this->lglog($result);
             }
         } else {
-            debmes("make_programm: No course = $course", 'lgsmarthinq');
+            $this->lglog("make_programm: No course = $course");
         }
         return $result;
     }
@@ -1112,7 +1110,7 @@ class LGAPI
         }
         $template = preg_replace("/\{\{\w+\}\}/", 0, $template);
         $template = preg_replace("/^\[|\]$/", '', $template);
-        #debmes($template, 'lgsmarthinq');
+        #$this->lglog($template);
         $array = preg_split("/,/", $template);
         foreach ($array as $byte_number => $byte) {
             $result = $result . pack("C*", $byte);
@@ -1131,7 +1129,12 @@ class LGAPI
 
         }
     }
+	
+	function lglog($message){
+		if($this->log){
+			debmes($message, 'lgsmarthinq');
+		}
+	}
 
 }
-
 ?>
