@@ -34,6 +34,7 @@ class LGAPI
     private $workId = array();
     private $error = Null;
     private $OAUTH_REDIRECT_URI  = 'https://kr.m.lgaccount.com/login/iabClose';
+    private $OAUTH_SECRET_KEY = "c053c2a6ddeb7ad97cb0eed0dcb31cf8";
 
     function __construct($country, $language, $redirected_url=Null)
     {
@@ -399,27 +400,30 @@ class LGAPI
             $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
         }
 
-        $url = $this->oauth2_backend_url . "oauth/1.0/oauth2/token";
-
-        $headers = array(
-            'x-lge-appkey: '. $this->CLIENT_ID,
-            'x-lge-oauth-signature: ',
-            'x-lge-oauth-date: ' . $this->oauth2_datetime(),
-            'Accept: application/json',
-        );
+        $path = "oauth/1.0/oauth2/token";
+        $url = $this->oauth2_backend_url . "/".$path;
 
         $data = array(
             'code' => $this->oauth_code,
             'grant_type' => 'authorization_code',
             'redirect_uri' => $this->OAUTH_REDIRECT_URI,
         );
-        $json_request = $this->generate_json_request($data);
+
+        $query = http_build_query($data);
+        $date = $this->oauth2_datetime();
+        $signature = $this->signature($path."?".$query, $date);
+        $headers = array(
+            'x-lge-appkey: '. $this->CLIENT_ID,
+            'x-lge-oauth-signature: '.$signature,
+            'x-lge-oauth-date: ' . $this->oauth2_datetime(),
+            'Accept: application/json',
+        );
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
