@@ -400,7 +400,8 @@ class LGAPI
             $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
         }
 
-        $url = $this->oauth2_backend_url . "oauth/1.0/oauth2/token";
+        $path = "oauth/1.0/oauth2/token";
+        $url = $this->oauth2_backend_url . "/".$path;
 
         $data = array(
             'code' => $this->oauth_code,
@@ -410,7 +411,7 @@ class LGAPI
 
         $query = http_build_query($data);
         $date = $this->oauth2_datetime();
-        $signature = $this->signature("/oauth/1.0/oauth2/token?".$query, $date);
+        $signature = $this->signature($path."?".$query, $date);
         $headers = array(
             'x-lge-appkey: '. $this->CLIENT_ID,
             'x-lge-oauth-signature: '.$signature,
@@ -422,7 +423,7 @@ class LGAPI
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
