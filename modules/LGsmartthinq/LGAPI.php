@@ -20,14 +20,14 @@ class LGAPI
     private $SVC_CODE = 'SVC202';
     private $SVC_PHASE = 'OP';
     private $CLIENT_ID = 'LGAO221A02';
-    private $DATE_FORMAT = 'D, j M Y H:i:s +0000';
+    private $DATE_FORMAT = 'D, d M Y H:i:s +0000';
     private $APP_LEVEL = 'PRD';
     private $APP_OS = 'ANDROID';
     private $APP_TYPE = 'NUTS';
     private $APP_VER = '3.0.2100';
     private $auth_base = Null;
     private $api_root = Null;
-    private $oauth_root = 'https://ru.lgeapi.com'; # теоретически может отличаться в зависимости от региона
+    private $oauth_root; # теоретически может отличаться в зависимости от региона
     private $country = 'RU';
     private $language = 'ru-RU';
     private $devices = array();
@@ -35,6 +35,7 @@ class LGAPI
     private $error = Null;
     private $OAUTH_REDIRECT_URI  = 'https://kr.m.lgaccount.com/login/iabClose';
     private $OAUTH_SECRET_KEY = "c053c2a6ddeb7ad97cb0eed0dcb31cf8";
+    private $OAUTH_CLIENT_KEY = "LGAO221A02";
 
     function __construct($country, $language, $redirected_url=Null)
     {
@@ -270,13 +271,17 @@ class LGAPI
         $this->auth_base = $response->empUri;
         $this->api_devices_root = $response->thinq1Uri;
         $this->api_root = $response->thinq2Uri;
-        #$this->oauth_root = $response->empUri;
+        $this->oauth_root = $response->uris->empOauthBaseUri;
     }
 
     function check_gateway()
     {
-        if (!isset($this->auth_base) || !isset($this->api_root) || !isset($this->oauth2_backend_url)) {
-            #debmes("Set GateWays", 'lgsmarthinq');
+        if (
+            !isset($this->auth_base)
+            || !isset($this->api_root)
+            || !isset($this->oauth2_backend_url)
+            || !isset($this->oauth_root)
+        ) {
             $this->set_gateway();
         }
     }
@@ -401,7 +406,7 @@ class LGAPI
         }
 
         $path = "oauth/1.0/oauth2/token";
-        $url = $this->oauth2_backend_url . "/".$path;
+        $url = $this->oauth2_backend_url . $path;
 
         $data = array(
             'code' => $this->oauth_code,
@@ -411,11 +416,11 @@ class LGAPI
 
         $query = http_build_query($data);
         $date = $this->oauth2_datetime();
-        $signature = $this->signature($path."?".$query, $date);
+        $signature = $this->signature("/".$path."?".$query, $date);
         $headers = array(
             'x-lge-appkey: '. $this->CLIENT_ID,
             'x-lge-oauth-signature: '.$signature,
-            'x-lge-oauth-date: ' . $this->oauth2_datetime(),
+            'x-lge-oauth-date: ' . $date,
             'Accept: application/json',
         );
 
@@ -448,40 +453,36 @@ class LGAPI
             echo "Can not get access token: No refresh token\n";
             return Null;
         }
-        $result = Null;
 
-        if (!$this->oauth2_backend_url) {
-            $values = $this->parse_redirected_url($this->redirected_url);
-            $this->oauth2_backend_url = urldecode($values['oauth2_backend_url']);
+        if (!$this->oauth_root) {
+            $this->set_gateway();
         }
 
-        $url = $this->oauth2_backend_url . "/oauth/1.0/oauth2/token";
-        debmes($url, 'lgsmarthinq');
+        $path = "oauth2/token";
+        $url = rtrim($this->oauth_root, "/")."/".$path;
+
+        $query = "grant_type=refresh_token&refresh_token=".$refresh_token;
+        $date = $this->refresh_datetime();
+        $signature_message = "/oauth2/token?".$query;
+        $signature = $this->signature($signature_message, $date);
 
         $headers = array(
+            'lgemp-x-app-key: '. $this->OAUTH_CLIENT_KEY,
+            'lgemp-x-signature: '.$signature,
+            'lgemp-x-date: ' . $date,
             'Accept: application/json',
-            'x-lge-oauth-date: ' . $this->oauth2_datetime(),
-            "x-lge-appkey: LGAO221A02",
-            'x-lge-oauth-signature: ',
-            'X-Requested-With: com.lgeha.nuts',
-            'Pragma: no-cache',
-            'Cache-Control: no-cache'
         );
-        #print_r($url);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, "grant_type=refresh_token&refresh_token=$refresh_token");
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $response = curl_exec($ch);
-        #print_r($response);
-        #debmes($response, 'lgsmarthinq');
         curl_close($ch);
         $json = json_decode($response);
-        debmes($json, 'lgsmarthinq');
         if ($json->error) {
             debmes("Can not get access token: \n" .
                 "headers:\n" . print_r($headers, 1) .
@@ -493,7 +494,7 @@ class LGAPI
         if ( $result ) {
             $this->set_api_property('access_token', $result);
         }
-        debmes($result, 'lgsmarthinq');
+        debmes("access_token updated successfully: ".$result, 'lgsmarthinq');
         return $result;
     }
 
@@ -502,6 +503,12 @@ class LGAPI
         $result = date($this->DATE_FORMAT, time() - date("Z"));
         #debmes("Date:".$result,'lgsmarthinq');
         return $result;
+    }
+
+    function refresh_datetime()
+    {
+        $date = new DateTime('now', new DateTimeZone('UTC'));
+        return $date->format($this->DATE_FORMAT);
     }
 
     function get_items($response)
