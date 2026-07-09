@@ -58,6 +58,8 @@ if (!$access_token || !$refresh_token) {
 } else {
     $message = "access token and refresh token are ok. continue the cycle";
     debmes($message, 'lgsmarthinq');
+    debmes("Current access token: ".$api->get_access_token(), 'lgsmarthinq');
+    debmes("Current refresh token: ".$api->get_refresh_token(), 'lgsmarthinq');
     echo "$message\n";
 }
 
